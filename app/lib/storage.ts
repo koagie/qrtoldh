@@ -70,6 +70,13 @@ export function deleteRecord(id: string) {
   persist(getRecords().filter((r) => r.id !== id));
 }
 
+// 第2段：ログイン後にクラウドへ移行したローカル記録を消去する。
+export function clearLocalRecords() {
+  if (!isBrowser()) return;
+  localStorage.removeItem(RECORDS_KEY);
+  window.dispatchEvent(new Event(EVENT));
+}
+
 // 画面間で記録変更を反映するための購読
 export function subscribeRecords(cb: () => void): () => void {
   if (!isBrowser()) return () => {};

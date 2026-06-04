@@ -6,19 +6,20 @@ import ZoneBadge from "./components/ZoneBadge";
 import { ZONE_RANGES, ZONE_STYLE } from "./lib/colors";
 import { SCREEN_COLOR_NOTE, ZONE_MESSAGE } from "./lib/messages";
 import { formatJP } from "./lib/date";
-import { useRecords, useToday } from "./lib/hooks";
-import { upsertRecord } from "./lib/storage";
+import { useToday } from "./lib/hooks";
+import { useAppData } from "./components/AppDataProvider";
 import { zoneFromColor } from "./lib/types";
 
 export default function RecordPage() {
   const today = useToday();
-  const records = useRecords();
+  const { records, upsertRecord } = useAppData();
   const existing = records.find((r) => r.measured_at === today);
 
   // 選択値はローカル操作。未操作のときは既存記録の色を表示する（effect 不要の派生）。
   const [picked, setPicked] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const selected = picked ?? existing?.color_value ?? null;
   const zone = selected ? zoneFromColor(selected) : null;
@@ -36,9 +37,11 @@ export default function RecordPage() {
     else doSave();
   }
 
-  function doSave() {
+  async function doSave() {
     if (selected == null || !today) return;
-    upsertRecord(today, selected);
+    setSaving(true);
+    await upsertRecord(today, selected);
+    setSaving(false);
     setConfirmOpen(false);
     setSaved(true);
   }
@@ -86,10 +89,10 @@ export default function RecordPage() {
       <button
         type="button"
         onClick={handleSaveClick}
-        disabled={selected == null}
+        disabled={selected == null || saving}
         className="mt-5 w-full rounded-2xl bg-brand py-3.5 text-base font-bold text-white shadow-sm transition-colors disabled:bg-zinc-200 disabled:text-zinc-400"
       >
-        {hadRecord ? "記録を更新する" : "記録する"}
+        {saving ? "保存中…" : hadRecord ? "記録を更新する" : "記録する"}
       </button>
 
       {/* 完了表示 */}
@@ -122,9 +125,10 @@ export default function RecordPage() {
               <button
                 type="button"
                 onClick={doSave}
-                className="flex-1 rounded-2xl bg-brand py-3 text-sm font-bold text-white"
+                disabled={saving}
+                className="flex-1 rounded-2xl bg-brand py-3 text-sm font-bold text-white disabled:opacity-60"
               >
-                上書きする
+                {saving ? "保存中…" : "上書きする"}
               </button>
             </div>
           </div>

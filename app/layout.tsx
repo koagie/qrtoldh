@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
-import TabNav from "./components/TabNav";
-import Footer from "./components/Footer";
+import AppDataProvider from "./components/AppDataProvider";
+import AppShell from "./components/AppShell";
 import ServiceWorker from "./components/ServiceWorker";
 
 const geistSans = Geist({
@@ -38,20 +38,10 @@ export default function RootLayout({
   return (
     <html lang="ja" className={`${geistSans.variable} h-full antialiased`}>
       <body className="min-h-full">
-        {/* モバイルファースト：スマホ縦画面前提。中央に最大幅を固定 */}
-        <div className="mx-auto flex min-h-dvh max-w-md flex-col bg-white shadow-sm">
-          {/* ブランドヘッダー（ロゴ常時表示） */}
-          <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-zinc-100 bg-white/95 px-4 py-2.5 backdrop-blur">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-mark.png" alt="" className="h-7 w-7" />
-            <span className="font-wordmark text-[15px] font-semibold tracking-tight text-brand">
-              LDH test NAGATA
-            </span>
-          </header>
-          <main className="flex-1 pb-2">{children}</main>
-          <Footer />
-          <TabNav />
-        </div>
+        {/* モバイルファースト：スマホ縦画面前提。認証状態に応じてシェルが出し分け */}
+        <AppDataProvider>
+          <AppShell>{children}</AppShell>
+        </AppDataProvider>
         <ServiceWorker />
       </body>
     </html>
