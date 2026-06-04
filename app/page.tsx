@@ -1,65 +1,135 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import ColorGrid from "./components/ColorGrid";
+import ZoneBadge from "./components/ZoneBadge";
+import { ZONE_RANGES, ZONE_STYLE } from "./lib/colors";
+import { SCREEN_COLOR_NOTE, ZONE_MESSAGE } from "./lib/messages";
+import { formatJP } from "./lib/date";
+import { useRecords, useToday } from "./lib/hooks";
+import { upsertRecord } from "./lib/storage";
+import { zoneFromColor } from "./lib/types";
+
+export default function RecordPage() {
+  const today = useToday();
+  const records = useRecords();
+  const existing = records.find((r) => r.measured_at === today);
+
+  // 選択値はローカル操作。未操作のときは既存記録の色を表示する（effect 不要の派生）。
+  const [picked, setPicked] = useState<number | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const selected = picked ?? existing?.color_value ?? null;
+  const zone = selected ? zoneFromColor(selected) : null;
+  const hadRecord = !!existing;
+
+  function handleSelect(value: number) {
+    setPicked(value);
+    setSaved(false);
+  }
+
+  function handleSaveClick() {
+    if (selected == null) return;
+    // 同日に既存記録があれば上書き確認（仕様書 6①）
+    if (existing) setConfirmOpen(true);
+    else doSave();
+  }
+
+  function doSave() {
+    if (selected == null || !today) return;
+    upsertRecord(today, selected);
+    setConfirmOpen(false);
+    setSaved(true);
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <div className="px-4 pt-5">
+      <header className="mb-3">
+        <h1 className="text-xl font-bold text-zinc-800">今日のお口の色は？</h1>
+        <p className="mt-0.5 text-sm text-zinc-400">{today ? formatJP(today) : " "}</p>
+      </header>
+
+      {/* ゾーンの凡例（健康度ランクではなく、見直しのきっかけの段階） */}
+      <div className="mb-3 flex gap-2 text-[11px]">
+        {ZONE_RANGES.map(({ zone: z, min, max }) => (
+          <div key={z} className="flex items-center gap-1">
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: ZONE_STYLE[z].accent }}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <span className="text-zinc-500">
+              {ZONE_STYLE[z].label}（{min}–{max}）
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <ColorGrid selected={selected} onSelect={handleSelect} />
+
+      <p className="mt-3 text-[11px] leading-relaxed text-zinc-400">{SCREEN_COLOR_NOTE}</p>
+
+      {/* 選択中のゾーン名＋応援メッセージ */}
+      {zone && (
+        <section
+          className="mt-4 rounded-2xl p-4"
+          style={{ backgroundColor: ZONE_STYLE[zone].soft }}
+        >
+          <div className="mb-2 flex items-center gap-2">
+            <span className="text-sm font-bold text-zinc-700">今日の色は {selected} 番</span>
+            <ZoneBadge zone={zone} size="sm" />
+          </div>
+          <p className="text-sm leading-relaxed text-zinc-700">{ZONE_MESSAGE[zone]}</p>
+        </section>
+      )}
+
+      <button
+        type="button"
+        onClick={handleSaveClick}
+        disabled={selected == null}
+        className="mt-5 w-full rounded-2xl bg-brand py-3.5 text-base font-bold text-white shadow-sm transition-colors disabled:bg-zinc-200 disabled:text-zinc-400"
+      >
+        {hadRecord ? "記録を更新する" : "記録する"}
+      </button>
+
+      {/* 完了表示 */}
+      {saved && (
+        <p className="mt-3 text-center text-sm font-medium text-brand">
+          ✓ 今日の色を記録しました
+        </p>
+      )}
+
+      {/* 上書き確認 */}
+      {confirmOpen && (
+        <div
+          className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-xl">
+            <p className="text-base font-bold text-zinc-800">上書きしますか？</p>
+            <p className="mt-1 text-sm text-zinc-500">
+              {today ? formatJP(today) : ""}の記録を {selected} 番に更新します。
+            </p>
+            <div className="mt-4 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmOpen(false)}
+                className="flex-1 rounded-2xl border border-zinc-200 py-3 text-sm font-medium text-zinc-600"
+              >
+                やめる
+              </button>
+              <button
+                type="button"
+                onClick={doSave}
+                className="flex-1 rounded-2xl bg-brand py-3 text-sm font-bold text-white"
+              >
+                上書きする
+              </button>
+            </div>
+          </div>
         </div>
-      </main>
+      )}
     </div>
   );
 }
