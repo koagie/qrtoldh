@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import ColorGrid from "./components/ColorGrid";
 import ZoneBadge from "./components/ZoneBadge";
 import { ZONE_RANGES, ZONE_STYLE } from "./lib/colors";
@@ -134,6 +135,16 @@ export default function RecordPage() {
           </div>
         </div>
       )}
+
+      {/* データ削除（控えめに最下部） */}
+      <div className="mt-10 border-t border-zinc-100 pt-4">
+        <Link
+          href="/delete"
+          className="block text-center text-xs text-zinc-400 underline underline-offset-2"
+        >
+          記録データを削除する
+        </Link>
+      </div>
     </div>
   );
 }

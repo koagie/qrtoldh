@@ -20,6 +20,7 @@ interface AppData {
   recordsReady: boolean;
   upsertRecord: (measuredAt: string, colorValue: number) => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 const Ctx = createContext<AppData | null>(null);
@@ -127,9 +128,20 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
     setRecordsReady(false);
   }, [supabase]);
 
+  // 本人の記録とアカウント（ログイン用メールアドレス含む）を完全削除し、ログアウトする
+  const deleteAccount = useCallback(async () => {
+    if (!user) return;
+    const { error } = await supabase.rpc("delete_my_account");
+    if (error) throw error;
+    clearLocalRecords();
+    await supabase.auth.signOut();
+    setRecords([]);
+    setRecordsReady(false);
+  }, [supabase, user]);
+
   const value = useMemo<AppData>(
-    () => ({ user, authReady, records, recordsReady, upsertRecord, signOut }),
-    [user, authReady, records, recordsReady, upsertRecord, signOut],
+    () => ({ user, authReady, records, recordsReady, upsertRecord, signOut, deleteAccount }),
+    [user, authReady, records, recordsReady, upsertRecord, signOut, deleteAccount],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

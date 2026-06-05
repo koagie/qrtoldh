@@ -1,13 +1,19 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import Footer from "./Footer";
 import TabNav from "./TabNav";
 import LoginScreen from "./LoginScreen";
 import { useAppData } from "./AppDataProvider";
 
+// ログイン不要で閲覧できる公開ルート
+const PUBLIC_ROUTES = ["/privacy", "/auth/auth-code-error"];
+
 // 認証状態に応じて、ログイン画面 / アプリ本体を出し分けるシェル。
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { user, authReady, signOut } = useAppData();
+  const pathname = usePathname();
+  const isPublic = PUBLIC_ROUTES.some((p) => pathname.startsWith(p));
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col bg-white shadow-sm">
@@ -30,7 +36,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </header>
 
       <main className="flex-1 pb-2">
-        {!authReady ? (
+        {isPublic ? (
+          children
+        ) : !authReady ? (
           <Splash />
         ) : user ? (
           children
