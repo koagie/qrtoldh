@@ -76,7 +76,7 @@ export default function LoginScreen() {
       </div>
 
       {/* かんたん2ステップの説明（マジックリンク方式・新規も登録不要） */}
-      <section className="mb-4 rounded-xl bg-brand-soft px-3 py-2.5">
+      <section className="mb-2.5 rounded-xl bg-brand-soft px-3 py-2.5">
         <p className="text-[10px] font-bold tracking-wide text-brand-sky">かんたん2ステップ</p>
         <ol className="mt-1.5 space-y-1.5">
           <li className="flex items-start gap-2">
@@ -102,6 +102,11 @@ export default function LoginScreen() {
           初めての方も、アカウント登録なしでそのまま始められます。
         </p>
       </section>
+
+      {/* ログイン後の流れ（初めての人向けに、使い方をひと言） */}
+      <p className="mb-4 px-1 text-[11px] leading-relaxed text-zinc-400">
+        ログインしたら、今日のお口の色をタップして記録。あとはカレンダーや変化グラフで、毎日の様子をふりかえれます。
+      </p>
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <label className="block">
