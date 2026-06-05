@@ -1,0 +1,75 @@
+<!--
+  「お口の観察ログ」マジックリンク / サインアップ確認メール テンプレート
+  使い方：Supabase 管理画面 → Authentication → Emails → Templates の
+    ・「Magic Link」（再ログイン用）
+    ・「Confirm signup」（新規の初回ログイン用）
+  の両方に、この HTML を貼り付ける。リンク変数は {{ .ConfirmationURL }} を使用。
+
+  推奨 Subject（件名）：
+    「お口の観察ログ」ログイン用リンク
+
+  ※文言は健康教育ツールの制約に準拠：状態の判定・評価／結果別の受診勧奨／
+    疾病用語（歯周病・炎症・リスク・診断・判定）は使わない。
+-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+  style="background-color:#eef5fb;margin:0;padding:24px 0;font-family:'Hiragino Sans','Hiragino Kaku Gothic ProN',Meiryo,sans-serif;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+        style="max-width:440px;background-color:#ffffff;border-radius:16px;overflow:hidden;
+               box-shadow:0 8px 24px -8px rgba(25,56,118,0.18);">
+        <!-- ヘッダー -->
+        <tr>
+          <td style="padding:24px 28px 8px;">
+            <img src="https://qrtoldhtestnagata.vercel.app/logo-mark.png" width="40" height="40"
+              alt="" style="display:block;border:0;" />
+          </td>
+        </tr>
+        <!-- 本文 -->
+        <tr>
+          <td style="padding:8px 28px 4px;">
+            <h1 style="margin:0;font-size:20px;line-height:1.4;color:#1a4684;font-weight:700;">
+              お口の観察ログ
+            </h1>
+            <p style="margin:8px 0 0;font-size:14px;line-height:1.7;color:#52606d;">
+              セルフケアの観察を記録するツールです。<br />
+              下のボタンをタップすると、ログインが完了します。
+            </p>
+          </td>
+        </tr>
+        <!-- ボタン -->
+        <tr>
+          <td style="padding:20px 28px;">
+            <a href="{{ .ConfirmationURL }}"
+              style="display:block;background-color:#1a4684;color:#ffffff;text-decoration:none;
+                     text-align:center;font-size:16px;font-weight:700;padding:14px 20px;border-radius:14px;">
+              ログインする
+            </a>
+          </td>
+        </tr>
+        <!-- 補助テキスト -->
+        <tr>
+          <td style="padding:0 28px 8px;">
+            <p style="margin:0;font-size:12px;line-height:1.7;color:#9aa5b1;">
+              ボタンが押せないときは、次のリンクをブラウザで開いてください：<br />
+              <a href="{{ .ConfirmationURL }}" style="color:#1b76ad;word-break:break-all;">{{ .ConfirmationURL }}</a>
+            </p>
+            <p style="margin:12px 0 0;font-size:12px;line-height:1.7;color:#9aa5b1;">
+              このメールに心当たりがない場合は、そのまま破棄してください。リンクには有効期限があります。
+            </p>
+          </td>
+        </tr>
+        <!-- フッター -->
+        <tr>
+          <td style="padding:16px 28px 24px;border-top:1px solid #eef2f6;">
+            <p style="margin:0;font-size:11px;line-height:1.7;color:#b0b8c1;">
+              ※本ツールは健康教育用ツールです。色は日々変化し、身体の状態を判定するものではありません。
+              記録したデータはご本人だけが見られます。
+            </p>
+            <p style="margin:8px 0 0;font-size:11px;color:#b0b8c1;">LDH test NAGATA</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
