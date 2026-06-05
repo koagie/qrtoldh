@@ -71,9 +71,37 @@ export default function LoginScreen() {
         <p className="mt-1 text-sm leading-relaxed text-zinc-500">
           セルフケアの観察を記録するツールです。
           <br />
-          メールアドレスでログインすると、記録をクラウドに保存して別の端末でも続けられます。
+          記録はクラウドに保存され、別の端末でも続けられます。
         </p>
       </div>
+
+      {/* かんたん2ステップの説明（マジックリンク方式・新規も登録不要） */}
+      <section className="mb-4 rounded-xl bg-brand-soft px-3 py-2.5">
+        <p className="text-[10px] font-bold tracking-wide text-brand-sky">かんたん2ステップ</p>
+        <ol className="mt-1.5 space-y-1.5">
+          <li className="flex items-start gap-2">
+            <span className="mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand text-[9px] font-bold text-white">
+              1
+            </span>
+            <span className="text-[12px] leading-snug text-zinc-600">
+              メールアドレスを入力して、リンクを送る
+            </span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand text-[9px] font-bold text-white">
+              2
+            </span>
+            <span className="text-[12px] leading-snug text-zinc-600">
+              届いたメールのリンクをタップして、ログイン完了
+            </span>
+          </li>
+        </ol>
+        <p className="mt-2 text-[10px] leading-relaxed text-brand/60">
+          パスワードは不要です。
+          <br />
+          初めての方も、アカウント登録なしでそのまま始められます。
+        </p>
+      </section>
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <label className="block">
@@ -102,7 +130,6 @@ export default function LoginScreen() {
       </form>
 
       <p className="mt-5 text-[12px] leading-relaxed text-zinc-400">
-        パスワードは不要です。入力したメールアドレスに届くリンクをタップするだけでログインできます。
         記録したデータはご本人だけが見られます。
       </p>
     </div>
