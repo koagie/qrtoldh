@@ -30,3 +30,23 @@ body {
 .font-wordmark {
   font-family: "Times New Roman", "YuMincho", "Hiragino Mincho ProN", Georgia, serif;
 }
+
+/* /hints アコーディオン展開時の項目フェードイン */
+@keyframes hint-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.hint-item {
+  animation: hint-fade-in 0.25s ease both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hint-item {
+    animation: none;
+  }
+}

@@ -1,92 +1,117 @@
-import { ZONE_RANGES, ZONE_STYLE } from "../lib/colors";
-import { THINGS_TO_KNOW, ZONE_MESSAGE } from "../lib/messages";
+"use client";
 
-// ケアのヒント（仕様書 6④）。声かけ集（結果表）のデザインに準拠。
-// KEEP / BOOST / ACTION の3セクションを「すべて」閲覧可能にする。
-// 結果による出し分けはしない（特定ゾーンの人だけに見せない）。
+import { useState } from "react";
+import { ZONE_STYLE } from "../lib/colors";
+import { HINT_ZONES } from "../lib/hints";
+import type { Zone } from "../lib/types";
 
-// 各ゾーンのセルフケアのコツ（一般的な教育コンテンツの範囲。状態判定・受診勧奨はしない）
-const ZONE_TIPS: Record<string, string[]> = {
-  KEEP: [
-    "朝晩のブラッシングを、今日も気持ちよく続けよう。",
-    "歯ブラシは1〜2か月を目安に取り替えると毛先が元気。",
-    "デンタルフロスや歯間ブラシをときどき取り入れてみよう。",
-  ],
-  BOOST: [
-    "いつものケアに「歯間ケア」をひとつ追加してみよう。",
-    "夜のブラッシングは少していねいに、時間をかけて。",
-    "水分をこまめにとって、お口のうるおいをキープ。",
-  ],
-  ACTION: [
-    "歯と歯ぐきの境目を、やさしく小刻みに磨いてみよう。",
-    "歯間ブラシ・フロスを毎日の習慣に。",
-    "自分に合う道具やケアの仕方を、いろいろ試してみよう。",
-  ],
-};
-
+// ケアのヒント（仕様書 タスク1）。
+// KEEP / BOOST / ACTION の3ゾーンをアコーディオン表示（1つ開くと他は閉じる、初期はKEEP）。
+// 文言はガイドライン準拠（判定・受診勧奨・疾病用語を使わない）。注意書きは共通フッターで常時表示。
 export default function HintsPage() {
+  const [open, setOpen] = useState<Zone | null>("KEEP");
+
   return (
-    <div className="bg-gradient-to-b from-brand-soft/60 to-transparent px-4 pt-5">
+    <div className="px-4 pt-5">
       <header className="mb-4">
         <p className="text-[11px] font-semibold tracking-[0.2em] text-brand-sky">ORAL CARE TIPS</p>
-        <h1 className="mt-0.5 text-xl font-bold text-brand">あなたにぴったりのケアのヒント</h1>
+        <h1 className="mt-0.5 text-xl font-bold text-brand">ケアのヒント</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          どの段階のヒントも自由に見られます。気になるものから取り入れてみよう。
+          気になる段階を開いて、できそうなことから取り入れてみよう。
         </p>
       </header>
 
-      <div className="space-y-4">
-        {ZONE_RANGES.map(({ zone, min, max }) => {
+      <div className="space-y-3">
+        {HINT_ZONES.map(({ zone, range, tagline, description, items }) => {
           const zs = ZONE_STYLE[zone];
+          const isOpen = open === zone;
+          const panelId = `hint-panel-${zone}`;
           return (
             <section
               key={zone}
-              className="flex overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_-6px_rgba(25,56,118,0.25)] ring-1 ring-black/5"
+              className="overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-[0_6px_18px_-8px_rgba(25,56,118,0.18)]"
             >
-              {/* 左：数値レンジ＋ゾーン名バッジ（声かけ集準拠） */}
-              <div
-                className="flex w-24 shrink-0 flex-col items-center justify-center gap-1.5 py-5 text-white"
-                style={{ backgroundColor: zs.accent }}
+              <button
+                type="button"
+                aria-expanded={isOpen}
+                aria-controls={panelId}
+                onClick={() => setOpen(isOpen ? null : zone)}
+                className="flex w-full items-center gap-3 px-3.5 py-3 text-left"
               >
-                <span className="text-2xl font-extrabold leading-none">
-                  {min}〜{max}
+                {/* 左：数字レンジ＋ラベルのバッジ */}
+                <span
+                  className="flex w-14 shrink-0 flex-col items-center justify-center rounded-xl py-1.5 text-white"
+                  style={{ backgroundColor: zs.accent }}
+                >
+                  <span className="text-sm font-extrabold leading-none">{range}</span>
+                  <span className="mt-0.5 text-[10px] font-bold tracking-wide">{zs.label}</span>
                 </span>
-                <span className="rounded-full bg-white/25 px-2.5 py-0.5 text-[11px] font-bold tracking-wide">
-                  {zs.label}
+
+                {/* 中央：タグライン＋一言説明 */}
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold" style={{ color: zs.text }}>
+                    {tagline}
+                  </span>
+                  <span className="mt-0.5 block text-[12px] leading-snug text-zinc-500">
+                    {description}
+                  </span>
                 </span>
-              </div>
-              {/* 右：応援メッセージ＋セルフケアのコツ */}
-              <div className="min-w-0 flex-1 px-4 py-3.5">
-                <h2 className="text-sm font-bold" style={{ color: zs.text }}>
-                  {zs.label}ゾーンの方へ
-                </h2>
-                <p className="mt-1 text-sm leading-relaxed text-zinc-700">{ZONE_MESSAGE[zone]}</p>
-                <ul className="mt-3 space-y-1.5">
-                  {ZONE_TIPS[zone].map((tip) => (
-                    <li key={tip} className="flex gap-2 text-sm text-zinc-600">
-                      <span style={{ color: zs.accent }}>・</span>
-                      <span>{tip}</span>
+
+                {/* 右：開閉シェブロン */}
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden
+                  className={`shrink-0 text-zinc-400 transition-transform duration-200 ${
+                    isOpen ? "rotate-180" : ""
+                  }`}
+                >
+                  <path
+                    d="M6 9l6 6 6-6"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+
+              {isOpen && (
+                <ul id={panelId} className="space-y-1.5 px-4 pb-4 pt-0.5">
+                  {items.map((item, i) => (
+                    <li
+                      key={item}
+                      className="hint-item flex items-start gap-2 text-sm leading-snug text-zinc-700"
+                      style={{ animationDelay: `${Math.min(i, 12) * 30}ms` }}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden
+                        className="mt-0.5 shrink-0"
+                        style={{ color: zs.accent }}
+                      >
+                        <path
+                          d="M5 13l4 4L19 7"
+                          stroke="currentColor"
+                          strokeWidth="2.4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <span>{item}</span>
                     </li>
                   ))}
                 </ul>
-              </div>
+              )}
             </section>
           );
         })}
       </div>
-
-      {/* 知っておきたい3つのコト（仕様書 7） */}
-      <section className="mt-5 rounded-2xl bg-brand-soft p-4">
-        <h2 className="text-sm font-bold text-brand">知っておきたい3つのコト</h2>
-        <ol className="mt-2 space-y-2">
-          {THINGS_TO_KNOW.map((t, i) => (
-            <li key={t} className="flex gap-2 text-sm leading-relaxed text-brand/90">
-              <span className="font-bold text-brand-sky">{i + 1}.</span>
-              <span>{t}</span>
-            </li>
-          ))}
-        </ol>
-      </section>
     </div>
   );
 }
