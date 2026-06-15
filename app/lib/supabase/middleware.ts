@@ -25,7 +25,22 @@ export async function updateSession(request: NextRequest) {
   );
 
   // getUser() を呼ぶことでトークンのリフレッシュが走る
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // 管理者エリアのガード（/admin。ただし /admin/login は除外）
+  const path = request.nextUrl.pathname;
+  const isAdminArea = path.startsWith("/admin") && !path.startsWith("/admin/login");
+  if (isAdminArea) {
+    if (!user) {
+      return NextResponse.redirect(new URL("/admin/login", request.url));
+    }
+    const { data: isAdmin } = await supabase.rpc("is_admin");
+    if (!isAdmin) {
+      return NextResponse.redirect(new URL("/admin/login", request.url));
+    }
+  }
 
   return response;
 }

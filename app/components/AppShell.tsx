@@ -15,6 +15,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isPublic = PUBLIC_ROUTES.some((p) => pathname.startsWith(p));
 
+  // 管理者エリア（/admin）は独自レイアウト＆認証ガード（middleware）に任せ、
+  // 一般利用者向けのヘッダー/フッター/タブや認証ゲートを通さない。
+  if (pathname.startsWith("/admin")) {
+    return <>{children}</>;
+  }
+
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col bg-white shadow-sm">
       {/* ブランドヘッダー（ロゴ常時表示・ログイン中はログアウト） */}
