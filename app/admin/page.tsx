@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Bar,
   BarChart,
@@ -25,7 +26,14 @@ const ZONES: Zone[] = ["KEEP", "BOOST", "ACTION"];
 // 集団の匿名集計のみ。個人を特定する情報は扱わない／表示しない。
 export default function AdminDashboardPage() {
   const { signOut } = useAppData();
+  const router = useRouter();
   const [org, setOrg] = useState<string>("all"); // all | 所属コード
+
+  // ログアウト後はガード対象外の管理者ログイン画面へ明示的に遷移
+  async function handleSignOut() {
+    await signOut();
+    router.replace("/admin/login");
+  }
   const [period, setPeriod] = useState<string>("all"); // all | YYYY-MM
 
   const rows = useMemo(() => {
@@ -89,7 +97,7 @@ export default function AdminDashboardPage() {
           </div>
           <button
             type="button"
-            onClick={() => signOut()}
+            onClick={handleSignOut}
             className="shrink-0 rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white"
           >
             ログアウト
