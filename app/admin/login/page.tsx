@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase/client";
 import { useAppData } from "../../components/AppDataProvider";
@@ -122,8 +123,14 @@ export default function AdminLoginPage() {
               </form>
 
               <p className="mt-5 text-center text-[11px] leading-relaxed text-zinc-400">
-                管理者専用 ／ 一般の方は観察ログアプリをご利用ください
+                管理者専用です。
               </p>
+              <Link
+                href="/"
+                className="mt-1 block text-center text-sm font-medium text-brand underline underline-offset-2"
+              >
+                一般の方は観察ログアプリへ
+              </Link>
             </>
           )}
         </div>
