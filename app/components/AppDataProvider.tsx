@@ -10,7 +10,12 @@ import {
 } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "../lib/supabase/client";
-import { clearLocalRecords, getRecords as getLocalRecords } from "../lib/storage";
+import {
+  clearLocalRecords,
+  getOrgCode,
+  getRecords as getLocalRecords,
+  setOrgCode,
+} from "../lib/storage";
 import { type RecordEntry, zoneFromColor } from "../lib/types";
 
 interface AppData {
@@ -43,6 +48,12 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
   const [records, setRecords] = useState<RecordEntry[]>([]);
   const [recordsReady, setRecordsReady] = useState(false);
 
+  // QR（?org=xxx）で開かれたら所属コードを保存し、以降の記録に付与する
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("org");
+    if (code) setOrgCode(code);
+  }, []);
+
   // 認証状態の購読（setState は非同期コールバック内なので effect 同期 setState には当たらない）
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -66,9 +77,11 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
       // ① ローカルに残っている記録をクラウドへ移行（同日重複は上書き）
       const local = getLocalRecords();
       if (local.length > 0) {
+        const orgCode = getOrgCode();
         const rows = local.map((r) => ({
           user_id: user.id,
           org_id: null,
+          org_code: orgCode,
           measured_at: r.measured_at,
           color_value: r.color_value,
           zone: zoneFromColor(r.color_value),
@@ -103,6 +116,7 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
           {
             user_id: user.id,
             org_id: null,
+            org_code: getOrgCode(),
             measured_at: measuredAt,
             color_value: colorValue,
             zone: zoneFromColor(colorValue),

@@ -8,6 +8,7 @@ import { type RecordEntry, zoneFromColor } from "./types";
 
 const USER_KEY = "ocl_user_id";
 const RECORDS_KEY = "ocl_records";
+const ORG_KEY = "ocl_org_code";
 const EVENT = "ocl_records_changed";
 
 function isBrowser(): boolean {
@@ -68,6 +69,18 @@ export function upsertRecord(measured_at: string, color_value: number): RecordEn
 
 export function deleteRecord(id: string) {
   persist(getRecords().filter((r) => r.id !== id));
+}
+
+// 所属コード（QRの ?org= 由来）。個人を特定しない「どの集団か」のラベル。
+// QRから開いた時点で保存し、以降の記録に付与する。
+export function getOrgCode(): string | null {
+  if (!isBrowser()) return null;
+  return localStorage.getItem(ORG_KEY);
+}
+
+export function setOrgCode(code: string) {
+  if (!isBrowser()) return;
+  localStorage.setItem(ORG_KEY, code);
 }
 
 // 第2段：ログイン後にクラウドへ移行したローカル記録を消去する。
