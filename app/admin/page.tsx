@@ -18,6 +18,7 @@ import {
 import { ZONE_STYLE } from "../lib/colors";
 import { zoneFromColor, type Zone } from "../lib/types";
 import { createClient } from "../lib/supabase/client";
+import { DEMO_MEASUREMENTS, DEMO_ORGS } from "../lib/admin-dummy";
 import { useAppData } from "../components/AppDataProvider";
 
 const ZONES: Zone[] = ["KEEP", "BOOST", "ACTION"];
@@ -41,9 +42,10 @@ export default function AdminDashboardPage() {
   const { signOut } = useAppData();
   const router = useRouter();
 
-  const [rowsAll, setRowsAll] = useState<Measurement[]>([]);
-  const [orgs, setOrgs] = useState<Org[]>([]);
+  const [realRows, setRealRows] = useState<Measurement[]>([]);
+  const [realOrgs, setRealOrgs] = useState<Org[]>([]);
   const [loading, setLoading] = useState(true);
+  const [demo, setDemo] = useState(false); // 実データが0件なら自動でデモ表示
   const [org, setOrg] = useState<string>("all"); // all | 所属コード | none
   const [period, setPeriod] = useState<string>("all"); // all | YYYY-MM
 
@@ -55,11 +57,23 @@ export default function AdminDashboardPage() {
         supabase.from("admin_measurements").select("org_code,color_value,measured_at"),
         supabase.from("orgs").select("code,name").order("name"),
       ]);
-      setRowsAll((m.data as Measurement[] | null) ?? []);
-      setOrgs((o.data as Org[] | null) ?? []);
+      const rows = (m.data as Measurement[] | null) ?? [];
+      setRealRows(rows);
+      setRealOrgs((o.data as Org[] | null) ?? []);
+      setDemo(rows.length === 0); // 実データがまだ無ければデモを表示
       setLoading(false);
     })();
   }, []);
+
+  // 表示に使うデータ（デモ or 実データ）
+  const rowsAll: Measurement[] = demo ? DEMO_MEASUREMENTS : realRows;
+  const orgs: Org[] = demo ? DEMO_ORGS : realOrgs;
+
+  function toggleDemo() {
+    setDemo((d) => !d);
+    setOrg("all"); // 所属コード体系が変わるためフィルタを戻す
+    setPeriod("all");
+  }
 
   async function handleSignOut() {
     await signOut();
@@ -143,8 +157,20 @@ export default function AdminDashboardPage() {
       </header>
 
       <div className="mx-auto max-w-2xl px-4 py-4">
+        {/* デモデータであることを明示（実績値との誤認防止） */}
+        {demo && (
+          <div className="mb-3 flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2">
+            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
+              デモデータ
+            </span>
+            <p className="flex-1 text-[11px] leading-relaxed text-amber-800">
+              実際の記録ではありません。サンプルの数値を表示しています。
+            </p>
+          </div>
+        )}
+
         {/* フィルタ */}
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
           <Select label="所属" value={org} onChange={setOrg}>
             <option value="all">すべての所属</option>
             {orgs.map((o) => (
@@ -162,6 +188,15 @@ export default function AdminDashboardPage() {
               </option>
             ))}
           </Select>
+
+          {/* デモ / 実データ の切替 */}
+          <button
+            type="button"
+            onClick={toggleDemo}
+            className="ml-auto rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600"
+          >
+            {demo ? "実データを表示" : "デモデータを表示"}
+          </button>
         </div>
 
         {loading ? (
