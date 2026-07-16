@@ -29,9 +29,12 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 管理者エリアのガード（/admin。ただし /admin/login は除外）
+  // 管理者エリアのガード（/admin。ただし /admin/login と 公開デモ /admin/demo は除外）
   const path = request.nextUrl.pathname;
-  const isAdminArea = path.startsWith("/admin") && !path.startsWith("/admin/login");
+  const isAdminArea =
+    path.startsWith("/admin") &&
+    !path.startsWith("/admin/login") &&
+    !path.startsWith("/admin/demo");
   if (isAdminArea) {
     if (!user) {
       return NextResponse.redirect(new URL("/admin/login", request.url));
