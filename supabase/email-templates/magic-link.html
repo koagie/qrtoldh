@@ -1,9 +1,14 @@
 <!--
   「お口の観察ログ」マジックリンク / サインアップ確認メール テンプレート
   使い方：Supabase 管理画面 → Authentication → Emails → Templates の
-    ・「Magic Link」（再ログイン用）
-    ・「Confirm signup」（新規の初回ログイン用）
-  の両方に、この HTML を貼り付ける。リンク変数は {{ .ConfirmationURL }} を使用。
+    ・「Magic Link」（再ログイン用）      → 下の type=magiclink のまま貼る
+    ・「Confirm signup」（新規の初回用）  → 下の type=magiclink を type=signup に変えて貼る
+  の2つに貼り付ける。
+
+  ※重要：リンクは ConfirmationURL ではなく token_hash 方式を使う。
+    ConfirmationURL（PKCE code方式）は「送信したブラウザ/端末」と
+    「開いたブラウザ/端末」が違うと必ず失敗する（PCで送ってスマホで開く等）。
+    token_hash 方式ならその制約がない。
 
   推奨 Subject（件名）：
     「お口の観察ログ」ログイン用リンク
@@ -40,7 +45,7 @@
         <!-- ボタン -->
         <tr>
           <td style="padding:20px 28px;">
-            <a href="{{ .ConfirmationURL }}"
+            <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink"
               style="display:block;background-color:#1a4684;color:#ffffff;text-decoration:none;
                      text-align:center;font-size:16px;font-weight:700;padding:14px 20px;border-radius:14px;">
               ログインする
@@ -52,7 +57,7 @@
           <td style="padding:0 28px 8px;">
             <p style="margin:0;font-size:12px;line-height:1.7;color:#9aa5b1;">
               ボタンが押せないときは、次のリンクをブラウザで開いてください：<br />
-              <a href="{{ .ConfirmationURL }}" style="color:#1b76ad;word-break:break-all;">{{ .ConfirmationURL }}</a>
+              <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink" style="color:#1b76ad;word-break:break-all;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink</a>
             </p>
             <p style="margin:12px 0 0;font-size:12px;line-height:1.7;color:#9aa5b1;">
               このメールに心当たりがない場合は、そのまま破棄してください。リンクには有効期限があります。
