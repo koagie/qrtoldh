@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "../lib/supabase/client";
 import { DEMO_MEASUREMENTS, DEMO_ORGS } from "../lib/admin-dummy";
@@ -46,6 +47,12 @@ export default function AdminDashboardPage() {
       loading={loading}
       headerAction={
         <div className="flex shrink-0 items-center gap-1.5">
+          <Link
+            href="/admin/qr"
+            className="rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-medium text-white"
+          >
+            QR
+          </Link>
           <button
             type="button"
             onClick={() => setDemo((d) => !d)}
