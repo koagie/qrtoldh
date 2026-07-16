@@ -11,7 +11,7 @@ const PUBLIC_ROUTES = ["/privacy", "/auth/auth-code-error"];
 
 // 認証状態に応じて、ログイン画面 / アプリ本体を出し分けるシェル。
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, authReady, signOut } = useAppData();
+  const { user, authReady, isDemo, signOut } = useAppData();
   const pathname = usePathname();
   const isPublic = PUBLIC_ROUTES.some((p) => pathname.startsWith(p));
 
@@ -30,11 +30,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <span className="font-wordmark text-[15px] font-semibold tracking-tight text-brand">
           LDH test NAGATA
         </span>
+        {isDemo && (
+          <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+            デモ
+          </span>
+        )}
         {user && (
           <button
             type="button"
             onClick={() => signOut()}
-            className="ml-auto rounded-full px-3 py-1 text-xs font-medium text-zinc-400 active:bg-zinc-100"
+            className={`${isDemo ? "" : "ml-auto"} rounded-full px-3 py-1 text-xs font-medium text-zinc-400 active:bg-zinc-100`}
           >
             ログアウト
           </button>

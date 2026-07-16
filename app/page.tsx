@@ -13,7 +13,7 @@ import { zoneFromColor } from "./lib/types";
 
 export default function RecordPage() {
   const today = useToday();
-  const { records, upsertRecord } = useAppData();
+  const { records, upsertRecord, isDemo } = useAppData();
   const existing = records.find((r) => r.measured_at === today);
 
   // 選択値はローカル操作。未操作のときは既存記録の色を表示する（effect 不要の派生）。
@@ -136,15 +136,17 @@ export default function RecordPage() {
         </div>
       )}
 
-      {/* データ削除（控えめに最下部） */}
-      <div className="mt-10 border-t border-zinc-100 pt-4">
-        <Link
-          href="/delete"
-          className="block text-center text-xs text-zinc-400 underline underline-offset-2"
-        >
-          記録データを削除する
-        </Link>
-      </div>
+      {/* データ削除（控えめに最下部）。デモ用アカウントでは共有アカウントを消せてしまうため出さない */}
+      {!isDemo && (
+        <div className="mt-10 border-t border-zinc-100 pt-4">
+          <Link
+            href="/delete"
+            className="block text-center text-xs text-zinc-400 underline underline-offset-2"
+          >
+            記録データを削除する
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

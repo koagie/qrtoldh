@@ -18,12 +18,19 @@ import {
 } from "../lib/storage";
 import { type RecordEntry, zoneFromColor } from "../lib/types";
 
+// デモ用アカウント（メール待ちなしで見せるため）。ブラウザから見える値である前提。
+export const DEMO_EMAIL = process.env.NEXT_PUBLIC_DEMO_EMAIL ?? "";
+const DEMO_PASSWORD = process.env.NEXT_PUBLIC_DEMO_PASSWORD ?? "";
+export const DEMO_ENABLED = Boolean(DEMO_EMAIL && DEMO_PASSWORD);
+
 interface AppData {
   user: User | null;
   authReady: boolean; // 初回のセッション確認が終わったか
+  isDemo: boolean; // デモ用アカウントでログイン中か
   records: RecordEntry[];
   recordsReady: boolean;
   upsertRecord: (measuredAt: string, colorValue: number) => Promise<void>;
+  signInDemo: () => Promise<void>;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
 }
@@ -136,6 +143,16 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
     [supabase, user],
   );
 
+  // デモ用アカウントでログイン（メール不要。デモ提示・動作確認用）
+  const signInDemo = useCallback(async () => {
+    if (!DEMO_ENABLED) return;
+    const { error } = await supabase.auth.signInWithPassword({
+      email: DEMO_EMAIL,
+      password: DEMO_PASSWORD,
+    });
+    if (error) throw error;
+  }, [supabase]);
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setRecords([]);
@@ -153,9 +170,23 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
     setRecordsReady(false);
   }, [supabase, user]);
 
+  const isDemo = Boolean(
+    DEMO_ENABLED && user?.email && user.email.toLowerCase() === DEMO_EMAIL.toLowerCase(),
+  );
+
   const value = useMemo<AppData>(
-    () => ({ user, authReady, records, recordsReady, upsertRecord, signOut, deleteAccount }),
-    [user, authReady, records, recordsReady, upsertRecord, signOut, deleteAccount],
+    () => ({
+      user,
+      authReady,
+      isDemo,
+      records,
+      recordsReady,
+      upsertRecord,
+      signInDemo,
+      signOut,
+      deleteAccount,
+    }),
+    [user, authReady, isDemo, records, recordsReady, upsertRecord, signInDemo, signOut, deleteAccount],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -1,15 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { createClient } from "../lib/supabase/client";
+import { DEMO_ENABLED, useAppData } from "./AppDataProvider";
+
+// デモ入口は ?demo=1 のときだけ表示（クライアントでのみ確定）
+const noopSubscribe = () => () => {};
+function useShowDemo(): boolean {
+  return useSyncExternalStore(
+    noopSubscribe,
+    () => DEMO_ENABLED && new URLSearchParams(window.location.search).get("demo") === "1",
+    () => false,
+  );
+}
 
 // マジックリンク（パスワードレス）ログイン画面。
 // 文言は健康教育ツールの制約に準拠：状態の判定・評価・受診勧奨・疾病用語を使わない。
 export default function LoginScreen() {
+  const { signInDemo } = useAppData();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // デモ入口は ?demo=1 のときだけ出す（一般利用者の画面には出さない）
+  const showDemo = useShowDemo();
+  const [demoLoading, setDemoLoading] = useState(false);
+
+  async function handleDemo() {
+    setDemoLoading(true);
+    setError(null);
+    try {
+      await signInDemo();
+    } catch {
+      setDemoLoading(false);
+      setError("デモにログインできませんでした。デモ用アカウントの設定をご確認ください。");
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -137,6 +163,24 @@ export default function LoginScreen() {
       <p className="mt-5 text-[12px] leading-relaxed text-zinc-400">
         記録したデータはご本人だけが見られます。
       </p>
+
+      {/* デモ入口（?demo=1 のときだけ表示。メール待ちなしで画面を見せる用） */}
+      {showDemo && (
+        <div className="mt-6 rounded-2xl border border-dashed border-zinc-300 p-4">
+          <p className="text-[11px] font-bold tracking-wide text-zinc-400">デモ表示</p>
+          <p className="mt-1 text-[12px] leading-relaxed text-zinc-500">
+            メールを使わずに画面を確認できます。デモ用の共有アカウントです。
+          </p>
+          <button
+            type="button"
+            onClick={handleDemo}
+            disabled={demoLoading}
+            className="mt-3 w-full rounded-2xl border border-zinc-300 py-3 text-sm font-bold text-zinc-700 disabled:opacity-60"
+          >
+            {demoLoading ? "ログイン中…" : "デモとして入る"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
