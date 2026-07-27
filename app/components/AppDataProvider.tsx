@@ -55,9 +55,11 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
   const [records, setRecords] = useState<RecordEntry[]>([]);
   const [recordsReady, setRecordsReady] = useState(false);
 
-  // QR（?org=xxx）で開かれたら所属コードを保存し、以降の記録に付与する
+  // QRで開かれたら配布ID（所属コード）を保存し、以降の記録に付与する。
+  // ?c= が現行仕様（10桁の不透明ID）。?org= は以前のQR向けの後方互換。
   useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get("org");
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("c") ?? params.get("org");
     if (code) setOrgCode(code);
   }, []);
 
