@@ -24,7 +24,7 @@ export default function AdminDashboardPage() {
     (async () => {
       const [m, o] = await Promise.all([
         supabase.from("admin_measurements").select("org_code,color_value,measured_at"),
-        supabase.from("orgs").select("code,name").order("name"),
+        supabase.from("organizations").select("code,name").order("name"),
       ]);
       const rows = (m.data as Measurement[] | null) ?? [];
       setRealRows(rows);
