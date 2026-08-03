@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Footer from "./Footer";
+import ComplianceFooter from "./ComplianceFooter";
 import TabNav from "./TabNav";
 import LoginScreen from "./LoginScreen";
 import { useAppData } from "./AppDataProvider";
@@ -59,6 +60,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </main>
 
       <Footer />
+      <ComplianceFooter />
       {user && <TabNav />}
     </div>
   );

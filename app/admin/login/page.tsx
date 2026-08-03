@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase/client";
 import { useAppData } from "../../components/AppDataProvider";
+import ComplianceFooter from "../../components/ComplianceFooter";
 
 // 管理者ログイン（健保組合・企業担当者）。一般利用者ログインとは別入口。
 // 認証は既存と同じ magic link。ログイン後は middleware と is_admin() で /admin を保護する。
@@ -134,6 +135,7 @@ export default function AdminLoginPage() {
             </>
           )}
         </div>
+        <ComplianceFooter onDark />
       </div>
     </div>
   );

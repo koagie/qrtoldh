@@ -5,6 +5,7 @@ import Link from "next/link";
 import QRCode from "qrcode";
 import JSZip from "jszip";
 import { ORG_TYPES, ORG_TYPE_LABEL, makeUniqueOrgCode } from "../../lib/org-id";
+import ComplianceFooter from "../../components/ComplianceFooter";
 
 // 配布ID・QR発行（管理者のみ。middleware でガード）。
 // 団体情報を入力すると10桁の不透明IDを発行し、QRを生成する。
@@ -408,6 +409,7 @@ export default function AdminQrPage() {
           </p>
         </section>
       </div>
+      <ComplianceFooter />
     </div>
   );
 }

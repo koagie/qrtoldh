@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import { ZONE_STYLE } from "../lib/colors";
 import { zoneFromColor, type Zone } from "../lib/types";
+import ComplianceFooter from "../components/ComplianceFooter";
 
 const ZONES: Zone[] = ["KEEP", "BOOST", "ACTION"];
 
@@ -30,6 +31,7 @@ export interface Measurement {
 export interface Org {
   code: string;
   name: string;
+  is_demo?: boolean; // サンプルデータの団体（バッジ表示の判定に使う）
 }
 
 // 集団の匿名集計ダッシュボード本体（実データ版・公開デモ版で共用）。
@@ -72,6 +74,9 @@ export default function DashboardView({
     : 0;
   const orgCount = new Set(rows.map((d) => d.org_code).filter(Boolean)).size;
 
+  // サンプルデータのバッジ：公開デモ or サンプル団体（organizations.is_demo）を選択中
+  const showSampleBadge = demo || orgs.some((o) => o.code === org && o.is_demo);
+
   const zoneDist = useMemo(() => {
     const c: Record<Zone, number> = { KEEP: 0, BOOST: 0, ACTION: 0 };
     for (const d of rows) c[zoneFromColor(d.color_value)]++;
@@ -95,7 +100,11 @@ export default function DashboardView({
         const a = inMonth.length
           ? inMonth.reduce((s, d) => s + d.color_value, 0) / inMonth.length
           : null;
-        return { month: m.slice(5) + "月", avg: a == null ? null : Number(a.toFixed(2)) };
+        return {
+          month: m.slice(5) + "月",
+          avg: a == null ? null : Number(a.toFixed(2)),
+          n: inMonth.length,
+        };
       }),
     [rows, months],
   );
@@ -119,13 +128,10 @@ export default function DashboardView({
       </header>
 
       <div className="mx-auto max-w-2xl px-4 py-4">
-        {demo && (
-          <div className="mb-3 flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2">
-            <span className="shrink-0 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
-              デモデータ
-            </span>
-            <p className="flex-1 text-[11px] leading-relaxed text-amber-800">
-              実際の記録ではありません。サンプルの数値を表示しています。
+        {showSampleBadge && (
+          <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+            <p className="text-[12px] leading-relaxed text-amber-800">
+              サンプルデータ（実際の測定記録ではありません）
             </p>
           </div>
         )}
@@ -166,10 +172,16 @@ export default function DashboardView({
         ) : (
           <>
             <div className="grid grid-cols-2 gap-2.5">
-              <Kpi label="累計測定件数" value={total.toLocaleString()} unit="件" />
-              <Kpi label="平均スコア" value={avg.toFixed(2)} unit="／8" />
-              <Kpi label="KEEPゾーン割合" value={String(keepRatio)} unit="%" />
-              <Kpi label="対象の所属数" value={String(orgCount)} unit="件" />
+              <Kpi label="累計測定件数" value={total.toLocaleString()} unit="件" n={total} />
+              <Kpi
+                label="平均値"
+                value={avg.toFixed(2)}
+                unit="／8"
+                n={total}
+                note="1〜8は比色表の色番号です。判定値ではありません。" // copy-lint-ignore
+              />
+              <Kpi label="KEEPゾーン割合" value={String(keepRatio)} unit="%" n={total} />
+              <Kpi label="対象の所属数" value={String(orgCount)} unit="件" n={total} />
             </div>
 
             <Card title="ゾーン分布">
@@ -208,9 +220,13 @@ export default function DashboardView({
                   ))}
                 </ul>
               </div>
+              <p className="mt-2 text-[11px] text-zinc-400">n = {total.toLocaleString()}</p>
+              <p className="mt-1 text-[10px] leading-relaxed text-zinc-400">
+                集団の色分布です。健康状態を判定するものではありません。 {/* copy-lint-ignore */}
+              </p>
             </Card>
 
-            <Card title="スコア分布（1〜8）">
+            <Card title="色番号の分布（1〜8）">
               <div className="h-44 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={scoreDist} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
@@ -231,7 +247,7 @@ export default function DashboardView({
                       cursor={{ fill: "rgba(0,0,0,0.04)" }}
                       contentStyle={{ borderRadius: 12, border: "1px solid #eee", fontSize: 12 }}
                       formatter={(v) => [`${v}件`, "件数"]}
-                      labelFormatter={(l) => `スコア ${l}`}
+                      labelFormatter={(l) => `色番号 ${l}`}
                     />
                     <Bar dataKey="count" radius={[4, 4, 0, 0]} isAnimationActive={false}>
                       {scoreDist.map((d) => (
@@ -241,9 +257,10 @@ export default function DashboardView({
                   </BarChart>
                 </ResponsiveContainer>
               </div>
+              <p className="mt-2 text-[11px] text-zinc-400">n = {total.toLocaleString()}</p>
             </Card>
 
-            <Card title="平均スコアの推移（月次）">
+            <Card title="平均値の推移（月次）">
               <div className="h-44 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={trend} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
@@ -261,10 +278,7 @@ export default function DashboardView({
                       axisLine={false}
                       width={32}
                     />
-                    <Tooltip
-                      contentStyle={{ borderRadius: 12, border: "1px solid #eee", fontSize: 12 }}
-                      formatter={(v) => [`${v}`, "平均スコア"]}
-                    />
+                    <Tooltip content={<TrendTooltip />} />
                     <Line
                       type="monotone"
                       dataKey="avg"
@@ -282,14 +296,46 @@ export default function DashboardView({
         )}
 
         <p className="mt-5 text-center text-[11px] leading-relaxed text-zinc-400">
-          集団の匿名集計です ／ 長田産業株式会社
+          集団の匿名集計です
         </p>
+        <ComplianceFooter />
       </div>
     </div>
   );
 }
 
-function Kpi({ label, value, unit }: { label: string; value: string; unit: string }) {
+// 平均値の推移のツールチップ（平均値と母数nを併記）
+function TrendTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: { payload: { month: string; avg: number | null; n: number } }[];
+}) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0].payload;
+  return (
+    <div className="rounded-xl border border-zinc-100 bg-white px-3 py-2 text-xs shadow">
+      <div className="font-semibold text-zinc-700">{p.month}</div>
+      <div className="text-zinc-500">平均値 {p.avg ?? "—"}</div>
+      <div className="text-zinc-400">n = {p.n.toLocaleString()}</div>
+    </div>
+  );
+}
+
+function Kpi({
+  label,
+  value,
+  unit,
+  n,
+  note,
+}: {
+  label: string;
+  value: string;
+  unit: string;
+  n?: number;
+  note?: string;
+}) {
   return (
     <div className="rounded-2xl border border-zinc-100 bg-white p-3.5 shadow-sm">
       <p className="text-[11px] text-zinc-500">{label}</p>
@@ -297,6 +343,8 @@ function Kpi({ label, value, unit }: { label: string; value: string; unit: strin
         {value}
         <span className="ml-0.5 text-xs font-medium text-zinc-400">{unit}</span>
       </p>
+      {n != null && <p className="mt-0.5 text-[11px] text-zinc-400">n = {n.toLocaleString()}</p>}
+      {note && <p className="mt-1 text-[10px] leading-relaxed text-zinc-400">{note}</p>}
     </div>
   );
 }
