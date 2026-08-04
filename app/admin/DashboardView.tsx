@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -17,11 +17,9 @@ import {
 import { ZONE_STYLE } from "../lib/colors";
 import { zoneFromColor, type Zone } from "../lib/types";
 import ComplianceFooter from "../components/ComplianceFooter";
+import { MIN_AGGREGATE_N, SUPPRESSED_LABEL, isSuppressed } from "../lib/aggregate";
 
 const ZONES: Zone[] = ["KEEP", "BOOST", "ACTION"];
-
-// 少人数だと個人が推測されうるため、この件数未満は数値を出さない
-const SUPPRESS_MIN = 5;
 
 export interface Measurement {
   org_code: string | null;
@@ -32,6 +30,13 @@ export interface Org {
   code: string;
   name: string;
   is_demo?: boolean; // サンプルデータの団体（バッジ表示の判定に使う）
+  distributed_count?: number | null; // 配布枚数（参加率の分母）
+}
+// 実施人数・継続人数（user_id は含まない。DB側で集約済みの数値のみ）
+export interface OrgStats {
+  participants: number;
+  repeaters: number;
+  measurements: number;
 }
 
 // 集団の匿名集計ダッシュボード本体（実データ版・公開デモ版で共用）。
@@ -42,15 +47,24 @@ export default function DashboardView({
   demo,
   loading = false,
   headerAction,
+  stats,
+  onFilterChange,
 }: {
   rows: Measurement[];
   orgs: Org[];
   demo: boolean;
   loading?: boolean;
   headerAction?: React.ReactNode;
+  stats?: OrgStats | null; // 現在の絞り込みに対応する実施人数など
+  onFilterChange?: (org: string, period: string) => void;
 }) {
   const [org, setOrg] = useState<string>("all"); // all | 所属コード | none
   const [period, setPeriod] = useState<string>("all"); // all | YYYY-MM
+
+  // 絞り込みが変わったら親に通知（親が集計を取り直す）
+  useEffect(() => {
+    onFilterChange?.(org, period);
+  }, [org, period, onFilterChange]);
 
   const months = useMemo(
     () => Array.from(new Set(rowsAll.map((d) => d.measured_at.slice(0, 7)))).sort(),
@@ -76,6 +90,39 @@ export default function DashboardView({
 
   // サンプルデータのバッジ：公開デモ or サンプル団体（organizations.is_demo）を選択中
   const showSampleBadge = demo || orgs.some((o) => o.code === org && o.is_demo);
+
+  // 参加率の分母（配布枚数）。特定の団体を選択中はその値、すべての所属なら合計。
+  const distributed = useMemo(() => {
+    if (org === "none") return null;
+    const target = org === "all" ? orgs : orgs.filter((o) => o.code === org);
+    const sum = target.reduce((s, o) => s + (o.distributed_count ?? 0), 0);
+    return sum > 0 ? sum : null;
+  }, [orgs, org]);
+
+  const participants = stats?.participants ?? null;
+  const repeaters = stats?.repeaters ?? null;
+
+  // 実施人数が少ない団体では、参加率・継続率をマスクする
+  const statsSuppressed = participants != null && isSuppressed(participants);
+
+  // 参加率：分母未設定なら「未設定」。100%超は入力ミスの可能性があるため表示しない。
+  const joinRate = useMemo(() => {
+    if (participants == null || distributed == null) return null;
+    const r = Math.round((participants / distributed) * 100);
+    if (r > 100) {
+      console.warn(
+        `[dashboard] 参加率が100%を超えています（実施人数 ${participants} / 配布 ${distributed}）。配布枚数の設定を確認してください。`,
+      );
+      return null;
+    }
+    return r;
+  }, [participants, distributed]);
+
+  // 継続率：2回以上記録した人の割合
+  const repeatRate =
+    participants != null && repeaters != null && participants > 0
+      ? Math.round((repeaters / participants) * 100)
+      : null;
 
   const zoneDist = useMemo(() => {
     const c: Record<Zone, number> = { KEEP: 0, BOOST: 0, ACTION: 0 };
@@ -109,7 +156,7 @@ export default function DashboardView({
     [rows, months],
   );
 
-  const suppressed = total > 0 && total < SUPPRESS_MIN;
+  const suppressed = isSuppressed(total);
 
   return (
     <div className="min-h-dvh bg-zinc-50">
@@ -166,13 +213,45 @@ export default function DashboardView({
           <div className="mt-10 rounded-2xl border border-zinc-100 bg-white p-6 text-center shadow-sm">
             <p className="text-sm font-medium text-zinc-700">データが少ないため表示しません</p>
             <p className="mt-2 text-[12px] leading-relaxed text-zinc-500">
-              対象の記録が {SUPPRESS_MIN} 件未満のときは、個人が推測されないよう集計値を表示しない設定にしています。
+              対象の記録が {MIN_AGGREGATE_N} 件未満のときは、個人が推測されないよう集計値を表示しない設定にしています。
             </p>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3">
               <Kpi label="累計測定件数" value={total.toLocaleString()} unit="件" n={total} />
+              <Kpi
+                label="実施人数"
+                value={participants == null ? "—" : participants.toLocaleString()}
+                unit="人"
+                n={total}
+              />
+              <Kpi
+                label="参加率"
+                value={
+                  statsSuppressed
+                    ? null
+                    : distributed == null
+                      ? "未設定"
+                      : joinRate == null
+                        ? "—"
+                        : String(joinRate)
+                }
+                unit={statsSuppressed || distributed == null || joinRate == null ? "" : "%"}
+                masked={statsSuppressed}
+                note={
+                  distributed == null
+                    ? "配布数に対する実施人数の割合"
+                    : `配布 ${distributed.toLocaleString()}枚中`
+                }
+              />
+              <Kpi
+                label="継続率"
+                value={statsSuppressed ? null : repeatRate == null ? "—" : String(repeatRate)}
+                unit={statsSuppressed || repeatRate == null ? "" : "%"}
+                masked={statsSuppressed}
+                note="2回以上記録した人の割合"
+              />
               <Kpi
                 label="平均値"
                 value={avg.toFixed(2)}
@@ -181,8 +260,10 @@ export default function DashboardView({
                 note="1〜8は比色表の色番号です。判定値ではありません。" // copy-lint-ignore
               />
               <Kpi label="KEEPゾーン割合" value={String(keepRatio)} unit="%" n={total} />
-              <Kpi label="対象の所属数" value={String(orgCount)} unit="件" n={total} />
             </div>
+            <p className="mt-2 text-[11px] text-zinc-400">
+              対象の所属数：{orgCount}件
+            </p>
 
             <Card title="ゾーン分布">
               <div className="flex items-center gap-3">
@@ -329,22 +410,30 @@ function Kpi({
   unit,
   n,
   note,
+  masked = false,
 }: {
   label: string;
-  value: string;
+  value: string | null;
   unit: string;
   n?: number;
   note?: string;
+  masked?: boolean;
 }) {
   return (
     <div className="rounded-2xl border border-zinc-100 bg-white p-3.5 shadow-sm">
       <p className="text-[11px] text-zinc-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-brand">
-        {value}
-        <span className="ml-0.5 text-xs font-medium text-zinc-400">{unit}</span>
-      </p>
-      {n != null && <p className="mt-0.5 text-[11px] text-zinc-400">n = {n.toLocaleString()}</p>}
-      {note && <p className="mt-1 text-[10px] leading-relaxed text-zinc-400">{note}</p>}
+      {masked ? (
+        <p className="mt-1 text-[12px] leading-snug text-zinc-500">{SUPPRESSED_LABEL}</p>
+      ) : (
+        <p className="mt-1 text-2xl font-bold text-brand">
+          {value}
+          <span className="ml-0.5 text-xs font-medium text-zinc-400">{unit}</span>
+        </p>
+      )}
+      {!masked && n != null && (
+        <p className="mt-0.5 text-[11px] text-zinc-400">n = {n.toLocaleString()}</p>
+      )}
+      {!masked && note && <p className="mt-1 text-[10px] leading-relaxed text-zinc-400">{note}</p>}
     </div>
   );
 }
