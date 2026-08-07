@@ -4,9 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "../lib/supabase/client";
-import { DEMO_MEASUREMENTS, DEMO_ORGS, demoStats } from "../lib/admin-dummy";
+import { DEMO_MEASUREMENTS, DEMO_ORGS, demoDemographics, demoStats } from "../lib/admin-dummy";
 import { useAppData } from "../components/AppDataProvider";
-import DashboardView, { type Measurement, type Org, type OrgStats } from "./DashboardView";
+import DashboardView, {
+  type Demographic,
+  type Measurement,
+  type Org,
+  type OrgStats,
+} from "./DashboardView";
 
 // "all" | "YYYY-MM" → [開始, 終了) のISO文字列。終了は翌月1日（未満で比較）。
 function periodRange(period: string): [string | null, string | null] {
@@ -28,6 +33,7 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [demo, setDemo] = useState(false); // 実データが0件なら自動でデモ表示
   const [stats, setStats] = useState<OrgStats | null>(null);
+  const [demographics, setDemographics] = useState<Demographic[]>([]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -52,21 +58,25 @@ export default function AdminDashboardPage() {
     (org: string, period: string) => {
       if (demo) {
         setStats(demoStats(org, period));
+        setDemographics(demoDemographics(org, period));
         return;
       }
       // 「所属なし」は org_code が null のため、関数の集計対象外
       if (org === "none") {
         setStats(null);
+        setDemographics([]);
         return;
       }
       const [from, to] = periodRange(period);
       const supabase = createClient();
+      const params = { p_org_code: org === "all" ? null : org, p_from: from, p_to: to };
+
+      supabase.rpc("admin_demographics", params).then(({ data }) => {
+        setDemographics((data as Demographic[] | null) ?? []);
+      });
+
       supabase
-        .rpc("admin_org_stats", {
-          p_org_code: org === "all" ? null : org,
-          p_from: from,
-          p_to: to,
-        })
+        .rpc("admin_org_stats", params)
         .then(({ data }) => {
           const list = (data as OrgStats[] | null) ?? [];
           if (list.length === 0) {
@@ -96,6 +106,7 @@ export default function AdminDashboardPage() {
       demo={demo}
       loading={loading}
       stats={stats}
+      demographics={demographics}
       onFilterChange={handleFilterChange}
       headerAction={
         <div className="flex shrink-0 items-center gap-1.5">

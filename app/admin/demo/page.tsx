@@ -2,17 +2,24 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
-import { DEMO_MEASUREMENTS, DEMO_ORGS, demoStats } from "../../lib/admin-dummy";
-import DashboardView, { type OrgStats } from "../DashboardView";
+import {
+  DEMO_MEASUREMENTS,
+  DEMO_ORGS,
+  demoDemographics,
+  demoStats,
+} from "../../lib/admin-dummy";
+import DashboardView, { type Demographic, type OrgStats } from "../DashboardView";
 
 // 公開デモ用ダッシュボード（認証不要）。
 // デモデータのみを表示し、Supabase の実データには一切アクセスしない。
 // → 誰が開いてもサンプル値しか出ないため、実績値の漏えいが起こりえない。
 export default function AdminDemoPage() {
   const [stats, setStats] = useState<OrgStats | null>(null);
+  const [demographics, setDemographics] = useState<Demographic[]>([]);
 
   const handleFilterChange = useCallback((org: string, period: string) => {
     setStats(demoStats(org, period));
+    setDemographics(demoDemographics(org, period));
   }, []);
 
   return (
@@ -21,6 +28,7 @@ export default function AdminDemoPage() {
       orgs={DEMO_ORGS}
       demo
       stats={stats}
+      demographics={demographics}
       onFilterChange={handleFilterChange}
       headerAction={
         <Link

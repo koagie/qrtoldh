@@ -21,6 +21,15 @@ import { MIN_AGGREGATE_N, SUPPRESSED_LABEL, isSuppressed } from "../lib/aggregat
 
 const ZONES: Zone[] = ["KEEP", "BOOST", "ACTION"];
 
+// 性別の表示順とラベル（DBの値 → 画面表示）
+const GENDER_ORDER = ["male", "female", "other", "na"];
+const GENDER_LABEL: Record<string, string> = {
+  male: "男性",
+  female: "女性",
+  other: "その他",
+  na: "回答しない",
+};
+
 export interface Measurement {
   org_code: string | null;
   color_value: number;
@@ -38,6 +47,13 @@ export interface OrgStats {
   repeaters: number;
   measurements: number;
 }
+// 年代・性別ごとの集計（同上）
+export interface Demographic {
+  age_band: string;
+  gender: string;
+  participants: number;
+  measurements: number;
+}
 
 // 集団の匿名集計ダッシュボード本体（実データ版・公開デモ版で共用）。
 // 個人を特定する情報は受け取らない／表示しない。
@@ -48,6 +64,7 @@ export default function DashboardView({
   loading = false,
   headerAction,
   stats,
+  demographics = [],
   onFilterChange,
 }: {
   rows: Measurement[];
@@ -56,6 +73,7 @@ export default function DashboardView({
   loading?: boolean;
   headerAction?: React.ReactNode;
   stats?: OrgStats | null; // 現在の絞り込みに対応する実施人数など
+  demographics?: Demographic[]; // 年代・性別ごとの集計
   onFilterChange?: (org: string, period: string) => void;
 }) {
   const [org, setOrg] = useState<string>("all"); // all | 所属コード | none
@@ -157,6 +175,27 @@ export default function DashboardView({
   );
 
   const suppressed = isSuppressed(total);
+
+  // 年代別・性別ごとに人数をまとめる（少人数は表示しない）
+  const byAge = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const d of demographics) m.set(d.age_band, (m.get(d.age_band) ?? 0) + d.participants);
+    return [...m.entries()]
+      .map(([label, n]) => ({ label, n }))
+      .sort((a, b) => a.label.localeCompare(b.label, "ja"));
+  }, [demographics]);
+
+  const byGender = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const d of demographics) m.set(d.gender, (m.get(d.gender) ?? 0) + d.participants);
+    return GENDER_ORDER.filter((g) => m.has(g)).map((g) => ({
+      label: GENDER_LABEL[g] ?? g,
+      n: m.get(g) ?? 0,
+    }));
+  }, [demographics]);
+
+  const demoTotal = demographics.reduce((s, d) => s + d.participants, 0);
+  const demoSuppressed = isSuppressed(demoTotal);
 
   return (
     <div className="min-h-dvh bg-zinc-50">
@@ -341,6 +380,26 @@ export default function DashboardView({
               <p className="mt-2 text-[11px] text-zinc-400">n = {total.toLocaleString()}</p>
             </Card>
 
+            {/* 年代・性別（実施人数ベース） */}
+            {demographics.length > 0 && (
+              <Card title="年代・性別（実施人数）">
+                {demoSuppressed ? (
+                  <p className="text-[12px] leading-relaxed text-zinc-500">
+                    {SUPPRESSED_LABEL}
+                  </p>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <BarList title="年代" items={byAge} total={demoTotal} />
+                    <BarList title="性別" items={byGender} total={demoTotal} />
+                  </div>
+                )}
+                <p className="mt-3 text-[11px] text-zinc-400">n = {demoTotal.toLocaleString()}</p>
+                <p className="mt-1 text-[10px] leading-relaxed text-zinc-400">
+                  属性を登録した方のみを集計しています。
+                </p>
+              </Card>
+            )}
+
             <Card title="平均値の推移（月次）">
               <div className="h-44 w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -434,6 +493,42 @@ function Kpi({
         <p className="mt-0.5 text-[11px] text-zinc-400">n = {n.toLocaleString()}</p>
       )}
       {!masked && note && <p className="mt-1 text-[10px] leading-relaxed text-zinc-400">{note}</p>}
+    </div>
+  );
+}
+
+// 横棒で割合を示す簡易リスト（年代・性別の内訳用）
+function BarList({
+  title,
+  items,
+  total,
+}: {
+  title: string;
+  items: { label: string; n: number }[];
+  total: number;
+}) {
+  return (
+    <div>
+      <p className="mb-1.5 text-[11px] font-medium text-zinc-500">{title}</p>
+      <ul className="space-y-1.5">
+        {items.map((it) => {
+          const pct = total > 0 ? Math.round((it.n / total) * 100) : 0;
+          return (
+            <li key={it.label} className="flex items-center gap-2 text-[12px]">
+              <span className="w-16 shrink-0 text-zinc-600">{it.label}</span>
+              <span className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100">
+                <span
+                  className="block h-full rounded-full bg-brand-mid"
+                  style={{ width: `${pct}%` }}
+                />
+              </span>
+              <span className="w-14 shrink-0 text-right tabular-nums text-zinc-500">
+                {it.n}人 {pct}%
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

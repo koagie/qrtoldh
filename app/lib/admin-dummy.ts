@@ -69,6 +69,44 @@ function generate(): DemoMeasurement[] {
 
 export const DEMO_MEASUREMENTS: DemoMeasurement[] = generate();
 
+// 擬似参加者ごとの年代・性別（デモ表示用。実在の属性ではない）
+const DEMO_AGE_BANDS = ["20代", "30代", "40代", "50代", "60代"];
+const DEMO_GENDERS = ["male", "female", "other", "na"];
+
+function demoAttr(orgCode: string | null, participant: number) {
+  const seed = (orgCode ?? "").length * 31 + participant * 17;
+  return {
+    age_band: DEMO_AGE_BANDS[seed % DEMO_AGE_BANDS.length],
+    // 男女が多め、その他・回答しないは少数になるよう寄せる
+    gender: DEMO_GENDERS[seed % 7 < 3 ? 0 : seed % 7 < 6 ? 1 : (seed % 2) + 2],
+  };
+}
+
+// デモ表示用の年代・性別集計
+export function demoDemographics(
+  org: string,
+  period: string,
+): { age_band: string; gender: string; participants: number; measurements: number }[] {
+  const rows = DEMO_MEASUREMENTS.filter(
+    (d) =>
+      (org === "all" || (org === "none" ? d.org_code == null : d.org_code === org)) &&
+      (period === "all" || d.measured_at.startsWith(period)),
+  );
+  const acc = new Map<string, { participants: Set<string>; measurements: number }>();
+  for (const r of rows) {
+    const a = demoAttr(r.org_code, r.demo_participant);
+    const key = `${a.age_band}#${a.gender}`;
+    if (!acc.has(key)) acc.set(key, { participants: new Set(), measurements: 0 });
+    const e = acc.get(key)!;
+    e.participants.add(`${r.org_code}#${r.demo_participant}`);
+    e.measurements++;
+  }
+  return [...acc.entries()].map(([key, v]) => {
+    const [age_band, gender] = key.split("#");
+    return { age_band, gender, participants: v.participants.size, measurements: v.measurements };
+  });
+}
+
 // デモ表示用の実施人数・継続人数。擬似参加者番号から集計する。
 export function demoStats(
   org: string,

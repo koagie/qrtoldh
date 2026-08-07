@@ -18,6 +18,7 @@ import {
 } from "../lib/storage";
 import { type RecordEntry, zoneFromColor } from "../lib/types";
 import type { Gender, Profile } from "../lib/profile";
+import { POLICY_VERSION } from "../lib/policy";
 
 // デモ用アカウント。メールアドレスだけをブラウザに置き、
 // パスワードはサーバー限定の環境変数に置いて /api/demo-login 経由でログインする。
@@ -162,9 +163,18 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
   const saveProfile = useCallback(
     async (age: number, gender: Gender) => {
       if (!user) return;
+      const now = new Date().toISOString();
       const { data, error } = await supabase
         .from("profiles")
-        .upsert({ id: user.id, age, gender, updated_at: new Date().toISOString() })
+        .upsert({
+          id: user.id,
+          age,
+          gender,
+          // 同意した日時と、その時点のポリシーの版を記録する
+          policy_agreed_at: now,
+          policy_version: POLICY_VERSION,
+          updated_at: now,
+        })
         .select("id,age,gender")
         .single();
       if (error) throw error;

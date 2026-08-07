@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { GENDER_OPTIONS, type Gender } from "../lib/profile";
 import { useAppData } from "./AppDataProvider";
 
@@ -10,12 +11,13 @@ export default function ProfileSetup() {
   const { saveProfile } = useAppData();
   const [age, setAge] = useState("");
   const [gender, setGender] = useState<Gender | null>(null);
+  const [agreed, setAgreed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const ageNum = Number(age);
   const ageValid = age !== "" && Number.isInteger(ageNum) && ageNum >= 0 && ageNum <= 120;
-  const canSubmit = ageValid && gender !== null && !saving;
+  const canSubmit = ageValid && gender !== null && agreed && !saving;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -83,6 +85,26 @@ export default function ProfileSetup() {
             </div>
           </fieldset>
 
+          {/* 同意（プライバシーポリシー） */}
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-2xl bg-brand-soft p-3.5">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              className="mt-0.5 h-5 w-5 shrink-0 accent-[#1A4684]"
+            />
+            <span className="text-[13px] leading-relaxed text-zinc-700">
+              <Link
+                href="/privacy"
+                target="_blank"
+                className="font-medium text-brand underline underline-offset-2"
+              >
+                プライバシーポリシー
+              </Link>
+              を読み、記録の保存と、個人が特定されない形での集計に同意します。
+            </span>
+          </label>
+
           {error && <p className="text-sm text-rose-600">{error}</p>}
 
           <button
@@ -90,7 +112,7 @@ export default function ProfileSetup() {
             disabled={!canSubmit}
             className="w-full rounded-2xl bg-brand py-3.5 text-base font-bold text-white shadow-sm transition-colors disabled:bg-zinc-200 disabled:text-zinc-400"
           >
-            {saving ? "保存中…" : "はじめる"}
+            {saving ? "保存中…" : "同意してはじめる"}
           </button>
         </form>
 
