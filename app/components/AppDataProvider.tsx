@@ -17,6 +17,7 @@ import {
   setOrgCode,
 } from "../lib/storage";
 import { type RecordEntry, zoneFromColor } from "../lib/types";
+import type { Gender, Profile } from "../lib/profile";
 
 // デモ用アカウント（メール待ちなしで見せるため）。ブラウザから見える値である前提。
 export const DEMO_EMAIL = process.env.NEXT_PUBLIC_DEMO_EMAIL ?? "";
@@ -27,9 +28,13 @@ interface AppData {
   user: User | null;
   authReady: boolean; // 初回のセッション確認が終わったか
   isDemo: boolean; // デモ用アカウントでログイン中か
+  profile: Profile | null; // 属性（年齢・性別）。未入力なら null
+  profileReady: boolean; // 属性の確認が終わったか
+  profileAvailable: boolean; // profiles テーブルを利用できるか（未作成なら false）
   records: RecordEntry[];
   recordsReady: boolean;
   upsertRecord: (measuredAt: string, colorValue: number) => Promise<void>;
+  saveProfile: (age: number, gender: Gender) => Promise<void>;
   signInDemo: () => Promise<void>;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -54,6 +59,9 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
   const [authReady, setAuthReady] = useState(false);
   const [records, setRecords] = useState<RecordEntry[]>([]);
   const [recordsReady, setRecordsReady] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profileReady, setProfileReady] = useState(false);
+  const [profileAvailable, setProfileAvailable] = useState(false);
 
   // QRで開かれたら配布ID（所属コード）を保存し、以降の記録に付与する。
   // ?c= が現行仕様（10桁の不透明ID）。?org= は以前のQR向けの後方互換。
@@ -100,14 +108,19 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
           .upsert(rows, { onConflict: "user_id,measured_at" });
         if (!error) clearLocalRecords();
       }
-      // ② クラウドから読み込み
-      const { data } = await supabase
-        .from("records")
-        .select("*")
-        .order("measured_at", { ascending: true });
+      // ② クラウドから読み込み（記録と属性）
+      const [rec, prof] = await Promise.all([
+        supabase.from("records").select("*").order("measured_at", { ascending: true }),
+        supabase.from("profiles").select("id,age,gender").eq("id", user.id).maybeSingle(),
+      ]);
       if (active) {
-        setRecords((data as RecordEntry[] | null) ?? []);
+        setRecords((rec.data as RecordEntry[] | null) ?? []);
         setRecordsReady(true);
+        setProfile((prof.data as Profile | null) ?? null);
+        // profiles テーブルが未作成などで問い合わせ自体が失敗した場合は、
+        // 保存できない画面で足止めしないよう属性入力を求めない。
+        setProfileAvailable(!prof.error);
+        setProfileReady(true);
       }
     })();
     return () => {
@@ -145,6 +158,21 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
     [supabase, user],
   );
 
+  // 属性（年齢・性別）の保存。本人の行のみ作成・更新できる（RLS）
+  const saveProfile = useCallback(
+    async (age: number, gender: Gender) => {
+      if (!user) return;
+      const { data, error } = await supabase
+        .from("profiles")
+        .upsert({ id: user.id, age, gender, updated_at: new Date().toISOString() })
+        .select("id,age,gender")
+        .single();
+      if (error) throw error;
+      setProfile(data as Profile);
+    },
+    [supabase, user],
+  );
+
   // デモ用アカウントでログイン（メール不要。デモ提示・動作確認用）
   const signInDemo = useCallback(async () => {
     if (!DEMO_ENABLED) return;
@@ -159,6 +187,9 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
     await supabase.auth.signOut();
     setRecords([]);
     setRecordsReady(false);
+    setProfile(null);
+    setProfileReady(false);
+    setProfileAvailable(false);
   }, [supabase]);
 
   // 本人の記録とアカウント（ログイン用メールアドレス含む）を完全削除し、ログアウトする
@@ -170,6 +201,9 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
     await supabase.auth.signOut();
     setRecords([]);
     setRecordsReady(false);
+    setProfile(null);
+    setProfileReady(false);
+    setProfileAvailable(false);
   }, [supabase, user]);
 
   const isDemo = Boolean(
@@ -181,14 +215,32 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
       user,
       authReady,
       isDemo,
+      profile,
+      profileReady,
+      profileAvailable,
       records,
       recordsReady,
       upsertRecord,
+      saveProfile,
       signInDemo,
       signOut,
       deleteAccount,
     }),
-    [user, authReady, isDemo, records, recordsReady, upsertRecord, signInDemo, signOut, deleteAccount],
+    [
+      user,
+      authReady,
+      isDemo,
+      profile,
+      profileReady,
+      profileAvailable,
+      records,
+      recordsReady,
+      upsertRecord,
+      saveProfile,
+      signInDemo,
+      signOut,
+      deleteAccount,
+    ],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -5,6 +5,7 @@ import Footer from "./Footer";
 import ComplianceFooter from "./ComplianceFooter";
 import TabNav from "./TabNav";
 import LoginScreen from "./LoginScreen";
+import ProfileSetup from "./ProfileSetup";
 import { useAppData } from "./AppDataProvider";
 
 // ログイン不要で閲覧できる公開ルート
@@ -12,7 +13,11 @@ const PUBLIC_ROUTES = ["/privacy", "/auth/auth-code-error"];
 
 // 認証状態に応じて、ログイン画面 / アプリ本体を出し分けるシェル。
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, authReady, isDemo, signOut } = useAppData();
+  const { user, authReady, isDemo, profile, profileReady, profileAvailable, signOut } =
+    useAppData();
+  // ログイン後、属性（年齢・性別）が未入力ならまず入力してもらう。
+  // profiles テーブルを利用できない場合は求めない（保存できない画面で足止めしないため）。
+  const needsProfile = Boolean(user && profileReady && profileAvailable && !profile);
   const pathname = usePathname();
   const isPublic = PUBLIC_ROUTES.some((p) => pathname.startsWith(p));
 
@@ -52,16 +57,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           children
         ) : !authReady ? (
           <Splash />
-        ) : user ? (
-          children
-        ) : (
+        ) : !user ? (
           <LoginScreen />
+        ) : !profileReady ? (
+          <Splash />
+        ) : needsProfile ? (
+          <ProfileSetup />
+        ) : (
+          children
         )}
       </main>
 
       <Footer />
       <ComplianceFooter />
-      {user && <TabNav />}
+      {user && !needsProfile && <TabNav />}
     </div>
   );
 }
