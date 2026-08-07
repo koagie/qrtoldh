@@ -19,10 +19,10 @@ import {
 import { type RecordEntry, zoneFromColor } from "../lib/types";
 import type { Gender, Profile } from "../lib/profile";
 
-// デモ用アカウント（メール待ちなしで見せるため）。ブラウザから見える値である前提。
+// デモ用アカウント。メールアドレスだけをブラウザに置き、
+// パスワードはサーバー限定の環境変数に置いて /api/demo-login 経由でログインする。
 export const DEMO_EMAIL = process.env.NEXT_PUBLIC_DEMO_EMAIL ?? "";
-const DEMO_PASSWORD = process.env.NEXT_PUBLIC_DEMO_PASSWORD ?? "";
-export const DEMO_ENABLED = Boolean(DEMO_EMAIL && DEMO_PASSWORD);
+export const DEMO_ENABLED = Boolean(DEMO_EMAIL);
 
 interface AppData {
   user: User | null;
@@ -173,14 +173,15 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
     [supabase, user],
   );
 
-  // デモ用アカウントでログイン（メール不要。デモ提示・動作確認用）
+  // デモ用アカウントでログイン（デモ提示・動作確認用）。
+  // 認証はサーバー側で行い、パスワードはブラウザに渡さない。
   const signInDemo = useCallback(async () => {
-    if (!DEMO_ENABLED) return;
-    const { error } = await supabase.auth.signInWithPassword({
-      email: DEMO_EMAIL,
-      password: DEMO_PASSWORD,
-    });
-    if (error) throw error;
+    const res = await fetch("/api/demo-login", { method: "POST" });
+    if (!res.ok) throw new Error("demo sign-in failed");
+    // サーバーが設定したcookieからセッションを読み直す
+    const { data } = await supabase.auth.getSession();
+    setUser(data.session?.user ?? null);
+    setAuthReady(true);
   }, [supabase]);
 
   const signOut = useCallback(async () => {
