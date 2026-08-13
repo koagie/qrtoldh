@@ -22,7 +22,7 @@ export default function HintsPage() {
       </header>
 
       <div className="space-y-3">
-        {HINT_ZONES.map(({ zone, range, tagline, description, items }) => {
+        {HINT_ZONES.map(({ zone, range, description, items }) => {
           const zs = ZONE_STYLE[zone];
           const isOpen = open === zone;
           const panelId = `hint-panel-${zone}`;
@@ -38,19 +38,22 @@ export default function HintsPage() {
                 onClick={() => setOpen(isOpen ? null : zone)}
                 className="flex w-full items-center gap-3 px-3.5 py-3 text-left"
               >
-                {/* 左：数字レンジ＋ラベルのバッジ */}
+                {/* 左：数字レンジ＋区分記号のバッジ */}
                 <span
                   className="flex w-14 shrink-0 flex-col items-center justify-center rounded-xl py-1.5 text-white"
                   style={{ backgroundColor: zs.accent }}
                 >
                   <span className="text-sm font-extrabold leading-none">{range}</span>
-                  <span className="mt-0.5 text-[10px] font-bold tracking-wide">{zs.label}</span>
+                  <span className="mt-0.5 text-[9px] font-bold tracking-wider">{zs.sub}</span>
                 </span>
 
-                {/* 中央：タグライン＋一言説明 */}
+                {/* 中央：区分名＋一言説明 */}
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-bold" style={{ color: zs.text }}>
-                    {tagline}
+                  <span className="flex items-baseline gap-1.5">
+                    <span className="text-sm font-bold" style={{ color: zs.text }}>
+                      {zs.label}
+                    </span>
+                    <span className="text-[10px] text-zinc-400">{zs.range}</span>
                   </span>
                   <span className="mt-0.5 block text-[12px] leading-snug text-zinc-500">
                     {description}

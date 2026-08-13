@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import ColorGrid from "./components/ColorGrid";
-import ZoneBadge from "./components/ZoneBadge";
 import { ZONE_RANGES, ZONE_STYLE } from "./lib/colors";
 import { SCREEN_COLOR_NOTE, ZONE_MESSAGE } from "./lib/messages";
 import { formatJP } from "./lib/date";
@@ -54,19 +53,29 @@ export default function RecordPage() {
         <p className="mt-0.5 text-sm text-zinc-400">{today ? formatJP(today) : " "}</p>
       </header>
 
-      {/* ゾーンの凡例（健康度ランクではなく、見直しのきっかけの段階） */}
-      <div className="mb-3 flex gap-2 text-[11px]">
-        {ZONE_RANGES.map(({ zone: z, min, max }) => (
-          <div key={z} className="flex items-center gap-1">
-            <span
-              className="inline-block h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: ZONE_STYLE[z].accent }}
-            />
-            <span className="text-zinc-500">
-              {ZONE_STYLE[z].label}（{min}–{max}）
-            </span>
-          </div>
-        ))}
+      {/* 区分の凡例（カラーチャートと同じ並び。数値がどの範囲にあるかを示す） */}
+      <div className="mb-3 grid grid-cols-3 gap-2">
+        {ZONE_RANGES.map(({ zone: z, min, max }) => {
+          const zs = ZONE_STYLE[z];
+          return (
+            <div key={z} className="text-center">
+              <span
+                className="block h-1 rounded-full"
+                style={{ backgroundColor: zs.accent }}
+                aria-hidden
+              />
+              <span className="mt-1 block text-[13px] font-bold" style={{ color: zs.text }}>
+                {zs.label}
+              </span>
+              <span className="block text-[9px] font-medium tracking-[0.12em] text-zinc-400">
+                {zs.sub}
+              </span>
+              <span className="block text-[10px] text-zinc-400">
+                {min}–{max}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       <ColorGrid selected={selected} onSelect={handleSelect} />
@@ -79,9 +88,16 @@ export default function RecordPage() {
           className="mt-4 rounded-2xl p-4"
           style={{ backgroundColor: ZONE_STYLE[zone].soft }}
         >
-          <div className="mb-2 flex items-center gap-2">
-            <span className="text-sm font-bold text-zinc-700">今日の色は {selected} 番</span>
-            <ZoneBadge zone={zone} size="sm" />
+          <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-sm font-bold" style={{ color: ZONE_STYLE[zone].text }}>
+              {ZONE_STYLE[zone].label}
+            </span>
+            <span className="text-[10px] font-medium tracking-[0.12em] text-zinc-500">
+              {ZONE_STYLE[zone].sub}
+            </span>
+            <span className="ml-auto text-[11px] text-zinc-500">
+              {selected} 番 ・ {ZONE_STYLE[zone].range}
+            </span>
           </div>
           <p className="text-sm leading-relaxed text-zinc-700">{ZONE_MESSAGE[zone]}</p>
         </section>

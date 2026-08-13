@@ -5,7 +5,6 @@ import type { Zone } from "./types";
 export interface HintZone {
   zone: Zone;
   range: string; // 数字レンジ（例 "1〜3"）
-  tagline: string; // 一語のタグライン
   description: string; // 一言説明
   items: string[]; // チェックリスト項目
 }
@@ -14,7 +13,6 @@ export const HINT_ZONES: HintZone[] = [
   {
     zone: "KEEP",
     range: "1〜3",
-    tagline: "続ける",
     description: "今の心地よさを、このまま。毎日のケアを気持ちよく続けていこう。",
     items: [
       "朝と夜、1日2回のケアを続ける",
@@ -27,7 +25,6 @@ export const HINT_ZONES: HintZone[] = [
   {
     zone: "BOOST",
     range: "4〜5",
-    tagline: "ちょい足し",
     description: "いつものケアに、ひとつプラス。少しの工夫でぐっと心地よく。",
     items: [
       "朝と夜、1日2回のケアを続ける",
@@ -43,7 +40,6 @@ export const HINT_ZONES: HintZone[] = [
   {
     zone: "ACTION",
     range: "6〜8",
-    tagline: "向き合う",
     description: "今日から、お口のケアを組み立て直す。ひとつずつ整えていこう。",
     items: [
       "朝と夜、1日2回のケアを習慣に",
