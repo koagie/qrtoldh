@@ -19,8 +19,8 @@ export function hexForColorValue(value: number): string {
 }
 
 // ゾーンの表示。カラーチャート改訂案B（Designchartv1）に準拠。
-// 画面に出す名前は「たもつ／ふやす／みなおす」。英字はチャート上の区分記号。
-// DBに保存する値（KEEP/BOOST/ACTION）は変更しない（既存データとの互換のため）。
+// 画面に出す名前は「たもつ／ふやす／みなおす」。
+// キー（KEEP/PLUS/ACTION）はチャート上の区分記号で、DBに保存する値と同じ。
 // 3段階は数値の範囲を見分けるための区分色であり、健康度のランクではない。
 export const ZONE_STYLE: Record<
   Zone,
@@ -34,7 +34,7 @@ export const ZONE_STYLE: Record<
     soft: "#DEE9FA",
     text: "#2A6FC4",
   },
-  BOOST: {
+  PLUS: {
     label: "ふやす",
     sub: "PLUS",
     range: "中くらいの範囲",
@@ -55,6 +55,6 @@ export const ZONE_STYLE: Record<
 // ゾーンが占める color_value の範囲（グラフの帯・グリッドの区切りに使用）
 export const ZONE_RANGES: { zone: Zone; min: number; max: number }[] = [
   { zone: "KEEP", min: 1, max: 3 },
-  { zone: "BOOST", min: 4, max: 5 },
+  { zone: "PLUS", min: 4, max: 5 },
   { zone: "ACTION", min: 6, max: 8 },
 ];

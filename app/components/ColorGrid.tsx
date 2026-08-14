@@ -5,7 +5,7 @@ import { zoneFromColor } from "../lib/types";
 
 // 比色サンプル 1〜8 のグリッド。
 // ・各サンプルに数字を併記（色だけで判別させない＝アクセシビリティ／仕様書 8）
-// ・上部の細いバーでゾーン（KEEP/BOOST/ACTION）を色分け
+// ・上部の細いバーでゾーン（KEEP/PLUS/ACTION）を色分け
 export default function ColorGrid({
   selected,
   onSelect,

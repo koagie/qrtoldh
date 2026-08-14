@@ -6,7 +6,7 @@ import { HINT_ZONES } from "../lib/hints";
 import type { Zone } from "../lib/types";
 
 // ケアのヒント（仕様書 タスク1）。
-// KEEP / BOOST / ACTION の3ゾーンをアコーディオン表示（1つ開くと他は閉じる、初期はKEEP）。
+// KEEP / PLUS / ACTION の3ゾーンをアコーディオン表示（1つ開くと他は閉じる、初期はKEEP）。
 // 文言はガイドライン準拠（判定・受診勧奨・疾病用語を使わない）。注意書きは共通フッターで常時表示。
 export default function HintsPage() {
   const [open, setOpen] = useState<Zone | null>("KEEP");

@@ -23,7 +23,7 @@ export const HINT_ZONES: HintZone[] = [
     ],
   },
   {
-    zone: "BOOST",
+    zone: "PLUS",
     range: "4〜5",
     description: "いつものケアに、ひとつプラス。少しの工夫でぐっと心地よく。",
     items: [

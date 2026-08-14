@@ -16,7 +16,7 @@ select
   v.color_value,
   case
     when v.color_value <= 3 then 'KEEP'
-    when v.color_value <= 5 then 'BOOST'
+    when v.color_value <= 5 then 'PLUS'
     else 'ACTION'
   end,
   now()

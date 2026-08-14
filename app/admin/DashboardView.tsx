@@ -19,7 +19,7 @@ import { zoneFromColor, type Zone } from "../lib/types";
 import ComplianceFooter from "../components/ComplianceFooter";
 import { MIN_AGGREGATE_N, SUPPRESSED_LABEL, isSuppressed } from "../lib/aggregate";
 
-const ZONES: Zone[] = ["KEEP", "BOOST", "ACTION"];
+const ZONES: Zone[] = ["KEEP", "PLUS", "ACTION"];
 
 // 性別の表示順とラベル（DBの値 → 画面表示）
 const GENDER_ORDER = ["male", "female", "other", "na"];
@@ -143,7 +143,7 @@ export default function DashboardView({
       : null;
 
   const zoneDist = useMemo(() => {
-    const c: Record<Zone, number> = { KEEP: 0, BOOST: 0, ACTION: 0 };
+    const c: Record<Zone, number> = { KEEP: 0, PLUS: 0, ACTION: 0 };
     for (const d of rows) c[zoneFromColor(d.color_value)]++;
     return ZONES.map((z) => ({ zone: z, value: c[z] }));
   }, [rows]);

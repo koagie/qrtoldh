@@ -2,7 +2,7 @@
 // データモデルは第2・第3段（Supabase / 企業匿名集計）を見据えた構造。
 // 第1段で未使用のフィールド（org_id）も「箱」だけ用意しておく。
 
-export type Zone = "KEEP" | "BOOST" | "ACTION";
+export type Zone = "KEEP" | "PLUS" | "ACTION";
 
 export interface RecordEntry {
   id: string;
@@ -15,9 +15,9 @@ export interface RecordEntry {
 }
 
 // ゾーン算出ロジック（仕様書 5）
-//  1–3 → KEEP / 4–5 → BOOST / 6–8 → ACTION
+//  1–3 → KEEP / 4–5 → PLUS / 6–8 → ACTION
 export function zoneFromColor(value: number): Zone {
   if (value <= 3) return "KEEP";
-  if (value <= 5) return "BOOST";
+  if (value <= 5) return "PLUS";
   return "ACTION";
 }

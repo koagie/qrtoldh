@@ -9,7 +9,7 @@ create table if not exists public.records (
   org_id      uuid,                                   -- 第3段（企業集計）用。今は null
   measured_at date not null,                          -- 測定日（1ユーザー1日1件）
   color_value smallint not null check (color_value between 1 and 8),
-  zone        text not null check (zone in ('KEEP', 'BOOST', 'ACTION')),
+  zone        text not null check (zone in ('KEEP', 'PLUS', 'ACTION')),
   created_at  timestamptz not null default now(),
   unique (user_id, measured_at)                       -- 同一ユーザー・同一日は1件（上書き用）
 );
