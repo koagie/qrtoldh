@@ -296,7 +296,7 @@ export default function DashboardView({
                 value={avg.toFixed(2)}
                 unit="／8"
                 n={total}
-                note="1〜8は比色表の色番号です。判定値ではありません。" // copy-lint-ignore
+                note="1〜8はカラーチャートの色番号です。お口の状態を示す値ではありません。"
               />
               <Kpi label="KEEPゾーン割合" value={String(keepRatio)} unit="%" n={total} />
             </div>
@@ -342,7 +342,7 @@ export default function DashboardView({
               </div>
               <p className="mt-2 text-[11px] text-zinc-400">n = {total.toLocaleString()}</p>
               <p className="mt-1 text-[10px] leading-relaxed text-zinc-400">
-                集団の色分布です。健康状態を判定するものではありません。 {/* copy-lint-ignore */}
+                集団の色分布です。健康状態を示すものではありません。
               </p>
             </Card>
 
