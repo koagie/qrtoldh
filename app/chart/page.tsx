@@ -33,11 +33,11 @@ export default function ChartPage() {
       const since = new Date();
       since.setDate(since.getDate() - (period === "week" ? 7 : 30));
       const sinceStr = since.toISOString().slice(0, 10);
-      list = records.filter((r) => r.measured_at >= sinceStr);
+      list = records.filter((r) => r.measured_on >= sinceStr);
     }
     return list.map((r) => ({
-      date: r.measured_at,
-      label: formatShort(r.measured_at),
+      date: r.measured_on,
+      label: formatShort(r.measured_on),
       value: r.color_value,
     }));
   }, [records, period]);

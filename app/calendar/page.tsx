@@ -6,6 +6,7 @@ import { hexForColorValue } from "../lib/colors";
 import { ZONE_MESSAGE } from "../lib/messages";
 import { formatJP, toYMD } from "../lib/date";
 import { useRecords, useToday } from "../lib/hooks";
+import { zoneFromColor } from "../lib/types";
 
 const WEEK = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -19,7 +20,7 @@ export default function CalendarPage() {
   // 日付 → 記録 の索引
   const byDate = useMemo(() => {
     const map = new Map<string, (typeof records)[number]>();
-    for (const r of records) map.set(r.measured_at, r);
+    for (const r of records) map.set(r.measured_on, r);
     return map;
   }, [records]);
 
@@ -40,7 +41,7 @@ export default function CalendarPage() {
   const monthCount = useMemo(() => {
     if (!view) return 0;
     const prefix = `${view.y}-${String(view.m + 1).padStart(2, "0")}`;
-    return records.filter((r) => r.measured_at.startsWith(prefix)).length;
+    return records.filter((r) => r.measured_on.startsWith(prefix)).length;
   }, [records, view]);
 
   if (!view) return null;
@@ -128,9 +129,9 @@ export default function CalendarPage() {
         <section className="mt-5 rounded-2xl border border-zinc-100 bg-zinc-50 p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-zinc-700">
-              {formatJP(selectedRecord.measured_at)}
+              {formatJP(selectedRecord.measured_on)}
             </span>
-            <ZoneBadge zone={selectedRecord.zone} size="sm" />
+            <ZoneBadge zone={zoneFromColor(selectedRecord.color_value)} size="sm" />
           </div>
           <div className="mt-2 flex items-center gap-2">
             <span
@@ -142,7 +143,7 @@ export default function CalendarPage() {
             </span>
           </div>
           <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-            {ZONE_MESSAGE[selectedRecord.zone]}
+            {ZONE_MESSAGE[zoneFromColor(selectedRecord.color_value)]}
           </p>
         </section>
       )}

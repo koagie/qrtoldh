@@ -12,8 +12,8 @@ import { zoneFromColor } from "./lib/types";
 
 export default function RecordPage() {
   const today = useToday();
-  const { records, upsertRecord, isDemo } = useAppData();
-  const existing = records.find((r) => r.measured_at === today);
+  const { measurements, saveMeasurement, isDemo } = useAppData();
+  const existing = measurements.find((m) => m.measured_on === today);
 
   // 選択値はローカル操作。未操作のときは既存記録の色を表示する（effect 不要の派生）。
   const [picked, setPicked] = useState<number | null>(null);
@@ -40,7 +40,7 @@ export default function RecordPage() {
   async function doSave() {
     if (selected == null || !today) return;
     setSaving(true);
-    await upsertRecord(today, selected);
+    await saveMeasurement(today, selected);
     setSaving(false);
     setConfirmOpen(false);
     setSaved(true);

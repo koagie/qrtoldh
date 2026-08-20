@@ -26,13 +26,20 @@ export function makeUniqueOrgCode(existing: Set<string>): string {
 
 // 団体種別（DB内のみで持ち、QR/URLには出さない）
 export const ORG_TYPES = [
-  { value: "corp", label: "企業" },
+  { value: "corporate", label: "企業" },
   { value: "kenpo", label: "健康保険組合" },
-  { value: "kokuho", label: "国民健康保険組合" },
-  { value: "muni", label: "自治体" },
-  { value: "clinic", label: "歯科医院" },
+  { value: "municipality", label: "自治体" },
+  { value: "dental", label: "歯科医院" },
   { value: "event", label: "イベント" },
-  { value: "other", label: "その他" },
+  { value: "academic", label: "大学・研究機関" },
+  { value: "internal", label: "社内" },
+] as const;
+
+// 配布の用途（distributions.purpose）
+export const PURPOSES = [
+  { value: "general", label: "一般" },
+  { value: "health_business", label: "保健事業" },
+  { value: "research", label: "研究" },
 ] as const;
 
 export type OrgType = (typeof ORG_TYPES)[number]["value"];

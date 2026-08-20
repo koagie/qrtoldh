@@ -23,7 +23,7 @@ function periodRange(period: string): [string | null, string | null] {
 }
 
 // 管理ダッシュボード（管理者のみ。middleware でガード）。
-// 実データ（匿名ビュー admin_measurements）から集計し、まだ0件ならデモデータを表示する。
+// 実データ（匿名ビュー v_admin_measurements）から集計し、まだ0件ならデモデータを表示する。
 export default function AdminDashboardPage() {
   const { signOut } = useAppData();
   const router = useRouter();
@@ -39,15 +39,33 @@ export default function AdminDashboardPage() {
     const supabase = createClient();
     (async () => {
       const [m, o] = await Promise.all([
-        supabase.from("admin_measurements").select("org_code,color_value,measured_at"),
+        supabase.from("v_admin_measurements").select("distribution_code,color_value,measured_on"),
         supabase
-          .from("organizations")
-          .select("code,name,is_demo,distributed_count")
-          .order("name"),
+          .from("distributions")
+          .select("code,label,distributed_count,organizations(name)")
+          .order("code"),
       ]);
       const rows = (m.data as Measurement[] | null) ?? [];
       setRealRows(rows);
-      setRealOrgs((o.data as Org[] | null) ?? []);
+      // 配布コードごとに1件。表示名は団体名（同じ団体に複数の配布があればラベルを添える）
+      type DistRow = {
+        code: string;
+        label: string | null;
+        distributed_count: number | null;
+        organizations: { name: string } | { name: string }[] | null;
+      };
+      const dists = (o.data as DistRow[] | null) ?? [];
+      setRealOrgs(
+        dists.map((d) => {
+          const org = Array.isArray(d.organizations) ? d.organizations[0] : d.organizations;
+          const base = org?.name ?? d.code;
+          return {
+            code: d.code,
+            name: d.label ? `${base}（${d.label}）` : base,
+            distributed_count: d.distributed_count,
+          };
+        }),
+      );
       setDemo(rows.length === 0); // 実データがまだ無ければデモを表示
       setLoading(false);
     })();
@@ -61,7 +79,7 @@ export default function AdminDashboardPage() {
         setDemographics(demoDemographics(org, period));
         return;
       }
-      // 「所属なし」は org_code が null のため、関数の集計対象外
+      // 「所属なし」は配布コードが null のため、関数の集計対象外
       if (org === "none") {
         setStats(null);
         setDemographics([]);

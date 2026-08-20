@@ -4,9 +4,9 @@
 // ※個人を特定する情報は持たない：所属コード・スコア・測定日のみ。
 
 export interface DemoMeasurement {
-  org_code: string | null;
+  distribution_code: string | null;
   color_value: number; // 1〜8
-  measured_at: string; // YYYY-MM-DD
+  measured_on: string; // YYYY-MM-DD
   // デモ表示で実施人数・継続率を計算するための擬似的な参加者番号。
   // 実在ユーザーのIDではなく、この配列内だけで完結する連番。
   demo_participant: number;
@@ -56,9 +56,9 @@ function generate(): DemoMeasurement[] {
         const color_value = Math.min(8, Math.max(1, Math.round(raw)));
         const day = String(1 + Math.floor(rng() * 27)).padStart(2, "0");
         out.push({
-          org_code: code,
+          distribution_code: code,
           color_value,
-          measured_at: `2026-${m}-${day}`,
+          measured_on: `2026-${m}-${day}`,
           demo_participant: Math.floor(rng() * people[code]),
         });
       }
@@ -89,16 +89,16 @@ export function demoDemographics(
 ): { age_band: string; gender: string; participants: number; measurements: number }[] {
   const rows = DEMO_MEASUREMENTS.filter(
     (d) =>
-      (org === "all" || (org === "none" ? d.org_code == null : d.org_code === org)) &&
-      (period === "all" || d.measured_at.startsWith(period)),
+      (org === "all" || (org === "none" ? d.distribution_code == null : d.distribution_code === org)) &&
+      (period === "all" || d.measured_on.startsWith(period)),
   );
   const acc = new Map<string, { participants: Set<string>; measurements: number }>();
   for (const r of rows) {
-    const a = demoAttr(r.org_code, r.demo_participant);
+    const a = demoAttr(r.distribution_code, r.demo_participant);
     const key = `${a.age_band}#${a.gender}`;
     if (!acc.has(key)) acc.set(key, { participants: new Set(), measurements: 0 });
     const e = acc.get(key)!;
-    e.participants.add(`${r.org_code}#${r.demo_participant}`);
+    e.participants.add(`${r.distribution_code}#${r.demo_participant}`);
     e.measurements++;
   }
   return [...acc.entries()].map(([key, v]) => {
@@ -114,13 +114,13 @@ export function demoStats(
 ): { participants: number; repeaters: number; measurements: number } | null {
   const rows = DEMO_MEASUREMENTS.filter(
     (d) =>
-      (org === "all" || (org === "none" ? d.org_code == null : d.org_code === org)) &&
-      (period === "all" || d.measured_at.startsWith(period)),
+      (org === "all" || (org === "none" ? d.distribution_code == null : d.distribution_code === org)) &&
+      (period === "all" || d.measured_on.startsWith(period)),
   );
   if (rows.length === 0) return null;
   const counts = new Map<string, number>();
   for (const r of rows) {
-    const key = `${r.org_code}#${r.demo_participant}`;
+    const key = `${r.distribution_code}#${r.demo_participant}`;
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   const values = [...counts.values()];

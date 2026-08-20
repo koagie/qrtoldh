@@ -34,7 +34,7 @@ export default function AdminQrPage() {
 
   // 入力フォーム
   const [name, setName] = useState("");
-  const [type, setType] = useState<string>("corp");
+  const [type, setType] = useState<string>("corporate");
   const [ym, setYm] = useState("");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -140,15 +140,19 @@ export default function AdminQrPage() {
 
   async function handleSql() {
     const e = (s: string) => String(s ?? "").replace(/'/g, "''");
-    const values = items
-      .map(
-        (i) =>
-          `  ('${i.code}', '${e(i.name)}', '${i.type}', ${i.ym ? `'${e(i.ym)}'` : "null"}, ${
-            i.note ? `'${e(i.note)}'` : "null"
-          })`,
-      )
-      .join(",\n");
-    const sql = `insert into public.organizations (code, name, org_type, issued_ym, note) values\n${values}\non conflict (code) do nothing;`;
+    const sql = items
+      .map((i) => {
+        const label = i.ym || i.note ? `'${e([i.ym, i.note].filter(Boolean).join(" / "))}'` : "null";
+        return `with o as (
+  insert into public.organizations (name, org_type)
+  values ('${e(i.name)}', '${i.type}')
+  returning id
+)
+insert into public.distributions (code, organization_id, purpose, label)
+select '${i.code}', o.id, 'general', ${label} from o
+on conflict (code) do nothing;`;
+      })
+      .join("\n\n");
     try {
       await navigator.clipboard.writeText(sql);
       setSqlText(null);

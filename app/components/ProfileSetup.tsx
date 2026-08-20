@@ -8,7 +8,7 @@ import { useAppData } from "./AppDataProvider";
 // ログイン後、はじめの1回だけ表示する属性入力。
 // 記録の集計に使う情報のみ。氏名・生年月日・住所は取得しない。
 export default function ProfileSetup() {
-  const { saveProfile } = useAppData();
+  const { completeSetup } = useAppData();
   const [age, setAge] = useState("");
   const [gender, setGender] = useState<Gender | null>(null);
   const [agreed, setAgreed] = useState(false);
@@ -25,7 +25,7 @@ export default function ProfileSetup() {
     setSaving(true);
     setError(null);
     try {
-      await saveProfile(ageNum, gender);
+      await completeSetup(ageNum, gender);
     } catch {
       setSaving(false);
       setError("保存できませんでした。時間をおいて、もう一度お試しください。");

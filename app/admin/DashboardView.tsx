@@ -31,9 +31,9 @@ const GENDER_LABEL: Record<string, string> = {
 };
 
 export interface Measurement {
-  org_code: string | null;
+  distribution_code: string | null;
   color_value: number;
-  measured_at: string;
+  measured_on: string;
 }
 export interface Org {
   code: string;
@@ -85,7 +85,7 @@ export default function DashboardView({
   }, [org, period, onFilterChange]);
 
   const months = useMemo(
-    () => Array.from(new Set(rowsAll.map((d) => d.measured_at.slice(0, 7)))).sort(),
+    () => Array.from(new Set(rowsAll.map((d) => d.measured_on.slice(0, 7)))).sort(),
     [rowsAll],
   );
 
@@ -93,8 +93,8 @@ export default function DashboardView({
     () =>
       rowsAll.filter(
         (d) =>
-          (org === "all" || (org === "none" ? d.org_code == null : d.org_code === org)) &&
-          (period === "all" || d.measured_at.startsWith(period)),
+          (org === "all" || (org === "none" ? d.distribution_code == null : d.distribution_code === org)) &&
+          (period === "all" || d.measured_on.startsWith(period)),
       ),
     [rowsAll, org, period],
   );
@@ -104,7 +104,7 @@ export default function DashboardView({
   const keepRatio = total
     ? Math.round((rows.filter((d) => d.color_value <= 3).length / total) * 100)
     : 0;
-  const orgCount = new Set(rows.map((d) => d.org_code).filter(Boolean)).size;
+  const orgCount = new Set(rows.map((d) => d.distribution_code).filter(Boolean)).size;
 
   // サンプルデータのバッジ：公開デモ or サンプル団体（organizations.is_demo）を選択中
   const showSampleBadge = demo || orgs.some((o) => o.code === org && o.is_demo);
@@ -161,7 +161,7 @@ export default function DashboardView({
   const trend = useMemo(
     () =>
       months.map((m) => {
-        const inMonth = rows.filter((d) => d.measured_at.startsWith(m));
+        const inMonth = rows.filter((d) => d.measured_on.startsWith(m));
         const a = inMonth.length
           ? inMonth.reduce((s, d) => s + d.color_value, 0) / inMonth.length
           : null;

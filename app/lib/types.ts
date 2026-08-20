@@ -1,21 +1,25 @@
-// ドメイン型定義
-// データモデルは第2・第3段（Supabase / 企業匿名集計）を見据えた構造。
-// 第1段で未使用のフィールド（org_id）も「箱」だけ用意しておく。
+// ドメイン型定義（データモデル再設計 v1 準拠）
 
 export type Zone = "KEEP" | "PLUS" | "ACTION";
 
-export interface RecordEntry {
+// 測定イベント。zone は保存せず、色番号から導出する（原則3）。
+export interface Measurement {
   id: string;
-  user_id: string; // 第1段はローカル生成の仮ID。第2段でSupabase認証IDに移行
-  org_id: string | null; // 第3段用。第1段は null
-  measured_at: string; // 測定日 YYYY-MM-DD（1日1件を基本）
-  color_value: number; // 選んだ色の数値 1–8
-  zone: Zone; // color_value から自動算出
-  created_at: string; // ISO 8601
+  app_user_id: string;
+  measured_on: string; // 測定日 YYYY-MM-DD
+  recorded_at: string; // 記録日時 ISO 8601
+  color_value: number; // 1–8
+  scale_version: string; // カラーチャートの版
+  distribution_code: string | null; // 配布コード（QRの ?c=）
+  context: MeasurementContext;
 }
 
-// ゾーン算出ロジック（仕様書 5）
-//  1–3 → KEEP / 4–5 → PLUS / 6–8 → ACTION
+// 同じ日でも文脈が違えば別の測定として残せる（イベントと日常の衝突を防ぐ）
+export type MeasurementContext = "self" | "event" | "clinic";
+
+// 色番号 → ゾーン。
+// DB側は scale_versions が持つ。画面表示のためにアプリ側でも同じ対応を持つ。
+// チャートを改訂して範囲が変わったら、両方を更新すること。
 export function zoneFromColor(value: number): Zone {
   if (value <= 3) return "KEEP";
   if (value <= 5) return "PLUS";

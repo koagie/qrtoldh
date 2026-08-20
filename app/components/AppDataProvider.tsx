@@ -16,9 +16,9 @@ import {
   getRecords as getLocalRecords,
   setOrgCode,
 } from "../lib/storage";
-import { type RecordEntry, zoneFromColor } from "../lib/types";
-import type { Gender, Profile } from "../lib/profile";
-import { POLICY_VERSION } from "../lib/policy";
+import type { Measurement } from "../lib/types";
+import type { AppUser, Gender } from "../lib/profile";
+import { POLICY_VERSION, REQUIRED_CONSENTS } from "../lib/policy";
 
 // デモ用アカウント。メールアドレスだけをブラウザに置き、
 // パスワードはサーバー限定の環境変数に置いて /api/demo-login 経由でログインする。
@@ -27,15 +27,16 @@ export const DEMO_ENABLED = Boolean(DEMO_EMAIL);
 
 interface AppData {
   user: User | null;
-  authReady: boolean; // 初回のセッション確認が終わったか
-  isDemo: boolean; // デモ用アカウントでログイン中か
-  profile: Profile | null; // 属性（年齢・性別）。未入力なら null
+  authReady: boolean;
+  isDemo: boolean;
+  appUser: AppUser | null; // 内部の利用者（app_users）
   profileReady: boolean; // 属性の確認が終わったか
-  profileAvailable: boolean; // profiles テーブルを利用できるか（未作成なら false）
-  records: RecordEntry[];
-  recordsReady: boolean;
-  upsertRecord: (measuredAt: string, colorValue: number) => Promise<void>;
-  saveProfile: (age: number, gender: Gender) => Promise<void>;
+  profileAvailable: boolean; // app_users を利用できるか（未作成なら false）
+  needsSetup: boolean; // 属性の登録がまだ必要か
+  measurements: Measurement[];
+  measurementsReady: boolean;
+  saveMeasurement: (measuredOn: string, colorValue: number) => Promise<void>;
+  completeSetup: (age: number, gender: Gender) => Promise<void>;
   signInDemo: () => Promise<void>;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -49,22 +50,22 @@ export function useAppData(): AppData {
   return ctx;
 }
 
-// records を返す薄いフック（既存ページ互換）
-export function useRecords(): RecordEntry[] {
-  return useAppData().records;
+// 測定値を返す薄いフック（既存ページ互換）
+export function useRecords(): Measurement[] {
+  return useAppData().measurements;
 }
 
 export default function AppDataProvider({ children }: { children: React.ReactNode }) {
   const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
-  const [records, setRecords] = useState<RecordEntry[]>([]);
-  const [recordsReady, setRecordsReady] = useState(false);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [profileReady, setProfileReady] = useState(false);
   const [profileAvailable, setProfileAvailable] = useState(false);
+  const [measurements, setMeasurements] = useState<Measurement[]>([]);
+  const [measurementsReady, setMeasurementsReady] = useState(false);
 
-  // QRで開かれたら配布ID（所属コード）を保存し、以降の記録に付与する。
+  // QRで開かれたら配布コードを保存し、以降の記録に付与する。
   // ?c= が現行仕様（10桁の不透明ID）。?org= は以前のQR向けの後方互換。
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -72,7 +73,7 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
     if (code) setOrgCode(code);
   }, []);
 
-  // 認証状態の購読（setState は非同期コールバック内なので effect 同期 setState には当たらない）
+  // 認証状態の購読
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setUser(data.session?.user ?? null);
@@ -87,41 +88,76 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
     return () => subscription.unsubscribe();
   }, [supabase]);
 
-  // ログインユーザーが確定したら、ローカル記録を移行 → クラウドから読み込み
+  // ログインしたら app_users の行を用意し、測定値を読み込む
   useEffect(() => {
     if (!user) return;
     let active = true;
     (async () => {
-      // ① ローカルに残っている記録をクラウドへ移行（同日重複は上書き）
+      // ① app_users の行を確保（無ければ作る）
+      const found = await supabase
+        .from("app_users")
+        .select("id,age,gender,entry_code")
+        .eq("auth_user_id", user.id)
+        .is("deleted_at", null)
+        .maybeSingle();
+
+      if (found.error) {
+        // app_users がまだ無い環境では属性登録で足止めしない
+        if (active) {
+          setProfileAvailable(false);
+          setProfileReady(true);
+          setMeasurementsReady(true);
+        }
+        return;
+      }
+
+      let row = found.data as AppUser | null;
+      if (!row) {
+        const created = await supabase
+          .from("app_users")
+          .insert({ auth_user_id: user.id, entry_code: getOrgCode() })
+          .select("id,age,gender,entry_code")
+          .single();
+        row = (created.data as AppUser | null) ?? null;
+      } else if (!row.entry_code && getOrgCode()) {
+        // あとからQRを読んだ場合は最初の1回だけ配布コードを記録する
+        await supabase
+          .from("app_users")
+          .update({ entry_code: getOrgCode() })
+          .eq("id", row.id);
+      }
+
+      if (!active) return;
+      setAppUser(row);
+      setProfileAvailable(true);
+      setProfileReady(true);
+      if (!row) return;
+
+      // ② ログイン前にローカルへ貯めた記録をクラウドへ移す
       const local = getLocalRecords();
       if (local.length > 0) {
-        const orgCode = getOrgCode();
+        const code = getOrgCode();
         const rows = local.map((r) => ({
-          user_id: user.id,
-          org_id: null,
-          org_code: orgCode,
-          measured_at: r.measured_at,
+          app_user_id: row!.id,
+          measured_on: r.measured_at,
           color_value: r.color_value,
-          zone: zoneFromColor(r.color_value),
+          distribution_code: code,
+          context: "self" as const,
         }));
         const { error } = await supabase
-          .from("records")
-          .upsert(rows, { onConflict: "user_id,measured_at" });
+          .from("measurements")
+          .upsert(rows, { onConflict: "app_user_id,measured_on,context" });
         if (!error) clearLocalRecords();
       }
-      // ② クラウドから読み込み（記録と属性）
-      const [rec, prof] = await Promise.all([
-        supabase.from("records").select("*").order("measured_at", { ascending: true }),
-        supabase.from("profiles").select("id,age,gender").eq("id", user.id).maybeSingle(),
-      ]);
+
+      // ③ 測定値を読み込む
+      const { data } = await supabase
+        .from("measurements")
+        .select("*")
+        .order("measured_on", { ascending: true });
       if (active) {
-        setRecords((rec.data as RecordEntry[] | null) ?? []);
-        setRecordsReady(true);
-        setProfile((prof.data as Profile | null) ?? null);
-        // profiles テーブルが未作成などで問い合わせ自体が失敗した場合は、
-        // 保存できない画面で足止めしないよう属性入力を求めない。
-        setProfileAvailable(!prof.error);
-        setProfileReady(true);
+        setMeasurements((data as Measurement[] | null) ?? []);
+        setMeasurementsReady(true);
       }
     })();
     return () => {
@@ -129,96 +165,107 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
     };
   }, [user, supabase]);
 
-  // 記録の作成／上書き（user_id + measured_at をユニークキーに upsert）
-  const upsertRecord = useCallback(
-    async (measuredAt: string, colorValue: number) => {
-      if (!user) return;
+  // 測定の記録（同じ日・同じ文脈は上書き）
+  const saveMeasurement = useCallback(
+    async (measuredOn: string, colorValue: number) => {
+      if (!appUser) return;
       const { data, error } = await supabase
-        .from("records")
+        .from("measurements")
         .upsert(
           {
-            user_id: user.id,
-            org_id: null,
-            org_code: getOrgCode(),
-            measured_at: measuredAt,
+            app_user_id: appUser.id,
+            measured_on: measuredOn,
             color_value: colorValue,
-            zone: zoneFromColor(colorValue),
+            distribution_code: getOrgCode(),
+            context: "self",
+            recorded_at: new Date().toISOString(),
           },
-          { onConflict: "user_id,measured_at" },
+          { onConflict: "app_user_id,measured_on,context" },
         )
         .select()
         .single();
       if (error || !data) return;
-      const saved = data as RecordEntry;
-      setRecords((prev) =>
-        [...prev.filter((r) => r.measured_at !== measuredAt), saved].sort((a, b) =>
-          a.measured_at.localeCompare(b.measured_at),
+      const saved = data as Measurement;
+      setMeasurements((prev) =>
+        [...prev.filter((m) => m.measured_on !== measuredOn), saved].sort((a, b) =>
+          a.measured_on.localeCompare(b.measured_on),
         ),
       );
     },
-    [supabase, user],
+    [supabase, appUser],
   );
 
-  // 属性（年齢・性別）の保存。本人の行のみ作成・更新できる（RLS）
-  const saveProfile = useCallback(
+  // 属性の登録と、同意の記録（目的ごとに1行ずつ）
+  const completeSetup = useCallback(
     async (age: number, gender: Gender) => {
-      if (!user) return;
-      const now = new Date().toISOString();
+      if (!appUser) return;
+
       const { data, error } = await supabase
-        .from("profiles")
-        .upsert({
-          id: user.id,
-          age,
-          gender,
-          // 同意した日時と、その時点のポリシーの版を記録する
-          policy_agreed_at: now,
-          policy_version: POLICY_VERSION,
-          updated_at: now,
-        })
-        .select("id,age,gender")
+        .from("app_users")
+        .update({ age, gender })
+        .eq("id", appUser.id)
+        .select("id,age,gender,entry_code")
         .single();
       if (error) throw error;
-      setProfile(data as Profile);
+
+      // 同意した目的ごとに consents へ1行。文書の版と必ず紐づける。
+      const { data: docs } = await supabase
+        .from("consent_documents")
+        .select("id,purpose,version")
+        .in("purpose", REQUIRED_CONSENTS)
+        .eq("version", POLICY_VERSION);
+
+      const rows = (docs ?? []).map((d: { id: string; purpose: string; version: string }) => ({
+        app_user_id: appUser.id,
+        consent_document_id: d.id,
+        purpose: d.purpose,
+        version: d.version,
+      }));
+      if (rows.length > 0) await supabase.from("consents").insert(rows);
+
+      setAppUser(data as AppUser);
     },
-    [supabase, user],
+    [supabase, appUser],
   );
 
-  // デモ用アカウントでログイン（デモ提示・動作確認用）。
-  // 認証はサーバー側で行い、パスワードはブラウザに渡さない。
   const signInDemo = useCallback(async () => {
     const res = await fetch("/api/demo-login", { method: "POST" });
     if (!res.ok) throw new Error("demo sign-in failed");
-    // サーバーが設定したcookieからセッションを読み直す
     const { data } = await supabase.auth.getSession();
     setUser(data.session?.user ?? null);
     setAuthReady(true);
   }, [supabase]);
 
-  const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
-    setRecords([]);
-    setRecordsReady(false);
-    setProfile(null);
+  function reset() {
+    setAppUser(null);
     setProfileReady(false);
     setProfileAvailable(false);
+    setMeasurements([]);
+    setMeasurementsReady(false);
+  }
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    reset();
   }, [supabase]);
 
-  // 本人の記録とアカウント（ログイン用メールアドレス含む）を完全削除し、ログアウトする
+  // 本人のデータとアカウントを削除する
   const deleteAccount = useCallback(async () => {
     if (!user) return;
     const { error } = await supabase.rpc("delete_my_account");
     if (error) throw error;
     clearLocalRecords();
     await supabase.auth.signOut();
-    setRecords([]);
-    setRecordsReady(false);
-    setProfile(null);
-    setProfileReady(false);
-    setProfileAvailable(false);
+    reset();
   }, [supabase, user]);
 
   const isDemo = Boolean(
     DEMO_ENABLED && user?.email && user.email.toLowerCase() === DEMO_EMAIL.toLowerCase(),
+  );
+
+  // 属性が未登録なら、まず登録してもらう
+  const needsSetup = Boolean(
+    user && profileReady && profileAvailable && appUser && appUser.age == null,
   );
 
   const value = useMemo<AppData>(
@@ -226,13 +273,14 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
       user,
       authReady,
       isDemo,
-      profile,
+      appUser,
       profileReady,
       profileAvailable,
-      records,
-      recordsReady,
-      upsertRecord,
-      saveProfile,
+      needsSetup,
+      measurements,
+      measurementsReady,
+      saveMeasurement,
+      completeSetup,
       signInDemo,
       signOut,
       deleteAccount,
@@ -241,13 +289,14 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
       user,
       authReady,
       isDemo,
-      profile,
+      appUser,
       profileReady,
       profileAvailable,
-      records,
-      recordsReady,
-      upsertRecord,
-      saveProfile,
+      needsSetup,
+      measurements,
+      measurementsReady,
+      saveMeasurement,
+      completeSetup,
       signInDemo,
       signOut,
       deleteAccount,
