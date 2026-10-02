@@ -37,6 +37,8 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ok: true,
       reached: true, // データベースまで届いた＝停止していない
+      // どのデプロイが出ているかを見分けるための印（自動反映の確認に使う）
+      rev: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "local",
       status: res.status,
       ms: Date.now() - startedAt,
       at: new Date().toISOString(),
