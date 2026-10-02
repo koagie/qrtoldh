@@ -2,6 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 import { createClient } from "../lib/supabase/client";
+import { getOrgCode } from "../lib/storage";
 import { DEMO_ENABLED, useAppData } from "./AppDataProvider";
 
 // デモ入口は ?demo=1 のときだけ表示（クライアントでのみ確定）
@@ -43,9 +44,16 @@ export default function LoginScreen() {
     setLoading(true);
     setError(null);
     const supabase = createClient();
+    // QRで読んだ配布コードをアカウント側にも預ける。
+    // ブラウザ内の控えは、メールのリンクを別のブラウザ（LINE内ブラウザ→Safari 等）で
+    // 開くと引き継がれないため。初回登録時のみ保存され、使う前に有効か確かめる。
+    const code = getOrgCode();
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        ...(code ? { data: { entry_code: code } } : {}),
+      },
     });
     setLoading(false);
     if (error) setError("送信できませんでした。メールアドレスをご確認のうえ、もう一度お試しください。");

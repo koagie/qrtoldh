@@ -64,6 +64,18 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
   const [profileAvailable, setProfileAvailable] = useState(false);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [measurementsReady, setMeasurementsReady] = useState(false);
+  // 記録に付ける配布コード（登録済みと確かめたものだけ。無ければ null＝所属なし）
+  const [activeCode, setActiveCode] = useState<string | null>(null);
+
+  // 配布コードが登録済み（かつ有効期間内）なら、そのコードを返す。それ以外は null。
+  const validCode = useCallback(
+    async (code: string | null | undefined): Promise<string | null> => {
+      if (!code) return null;
+      const { data, error } = await supabase.rpc("resolve_org", { p_code: code });
+      return !error && Array.isArray(data) && data.length > 0 ? code : null;
+    },
+    [supabase],
+  );
 
   // QRで開かれたら配布コードを保存し、以降の記録に付与する。
   // ?c= が現行仕様（10桁の不透明ID）。?org= は以前のQR向けの後方互換。
@@ -111,24 +123,38 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
         return;
       }
 
+      // 配布コードは「登録済みのものだけ」使う。
+      // 未登録のコードを付けると保存そのものが失敗するため、無効なら所属なしとして扱う。
+      // このブラウザで読んだコードを優先し、無ければ登録時にアカウントへ預けたコードを使う。
+      const scanned = await validCode(getOrgCode());
+      const signedUpWith = scanned
+        ? null
+        : await validCode(user.user_metadata?.entry_code as string | undefined);
+      const code = scanned ?? signedUpWith;
+
       let row = found.data as AppUser | null;
       if (!row) {
         const created = await supabase
           .from("app_users")
-          .insert({ auth_user_id: user.id, entry_code: getOrgCode() })
+          .insert({ auth_user_id: user.id, entry_code: code })
           .select("id,age,gender,entry_code")
           .single();
         row = (created.data as AppUser | null) ?? null;
-      } else if (!row.entry_code && getOrgCode()) {
+      } else if (!row.entry_code && code) {
         // あとからQRを読んだ場合は最初の1回だけ配布コードを記録する
-        await supabase
+        const { error } = await supabase
           .from("app_users")
-          .update({ entry_code: getOrgCode() })
+          .update({ entry_code: code })
           .eq("id", row.id);
+        if (!error) row = { ...row, entry_code: code };
       }
+
+      // 記録に付ける配布コード：このブラウザで読んだものがあればそれ、無ければ登録時のもの
+      const tag = scanned ?? row?.entry_code ?? null;
 
       if (!active) return;
       setAppUser(row);
+      setActiveCode(tag);
       setProfileAvailable(true);
       setProfileReady(true);
       if (!row) return;
@@ -136,12 +162,11 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
       // ② ログイン前にローカルへ貯めた記録をクラウドへ移す
       const local = getLocalRecords();
       if (local.length > 0) {
-        const code = getOrgCode();
         const rows = local.map((r) => ({
           app_user_id: row!.id,
           measured_on: r.measured_at,
           color_value: r.color_value,
-          distribution_code: code,
+          distribution_code: tag,
           context: "self" as const,
         }));
         const { error } = await supabase
@@ -163,12 +188,13 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
     return () => {
       active = false;
     };
-  }, [user, supabase]);
+  }, [user, supabase, validCode]);
 
-  // 測定の記録（同じ日・同じ文脈は上書き）
+  // 測定の記録（同じ日・同じ文脈は上書き）。
+  // 保存できなかったときは例外を投げる。呼び出し側で「保存できなかった」と伝えるため。
   const saveMeasurement = useCallback(
     async (measuredOn: string, colorValue: number) => {
-      if (!appUser) return;
+      if (!appUser) throw new Error("app_user_not_ready");
       const { data, error } = await supabase
         .from("measurements")
         .upsert(
@@ -176,7 +202,7 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
             app_user_id: appUser.id,
             measured_on: measuredOn,
             color_value: colorValue,
-            distribution_code: getOrgCode(),
+            distribution_code: activeCode,
             context: "self",
             recorded_at: new Date().toISOString(),
           },
@@ -184,7 +210,7 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
         )
         .select()
         .single();
-      if (error || !data) return;
+      if (error || !data) throw error ?? new Error("save_failed");
       const saved = data as Measurement;
       setMeasurements((prev) =>
         [...prev.filter((m) => m.measured_on !== measuredOn), saved].sort((a, b) =>
@@ -192,7 +218,7 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
         ),
       );
     },
-    [supabase, appUser],
+    [supabase, appUser, activeCode],
   );
 
   // 属性の登録と、同意の記録（目的ごとに1行ずつ）
@@ -242,6 +268,7 @@ export default function AppDataProvider({ children }: { children: React.ReactNod
     setProfileAvailable(false);
     setMeasurements([]);
     setMeasurementsReady(false);
+    setActiveCode(null);
   }
 
   const signOut = useCallback(async () => {

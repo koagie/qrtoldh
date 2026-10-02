@@ -20,6 +20,7 @@ export default function RecordPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
 
   const selected = picked ?? existing?.color_value ?? null;
   const zone = selected ? zoneFromColor(selected) : null;
@@ -28,6 +29,7 @@ export default function RecordPage() {
   function handleSelect(value: number) {
     setPicked(value);
     setSaved(false);
+    setSaveError(false);
   }
 
   function handleSaveClick() {
@@ -40,10 +42,18 @@ export default function RecordPage() {
   async function doSave() {
     if (selected == null || !today) return;
     setSaving(true);
-    await saveMeasurement(today, selected);
-    setSaving(false);
-    setConfirmOpen(false);
-    setSaved(true);
+    setSaveError(false);
+    try {
+      await saveMeasurement(today, selected);
+      setSaved(true);
+    } catch {
+      // 保存できなかったときに「記録しました」と出さない
+      setSaved(false);
+      setSaveError(true);
+    } finally {
+      setSaving(false);
+      setConfirmOpen(false);
+    }
   }
 
   return (
@@ -116,6 +126,11 @@ export default function RecordPage() {
       {saved && (
         <p className="mt-3 text-center text-sm font-medium text-brand">
           ✓ 今日の色を記録しました
+        </p>
+      )}
+      {saveError && (
+        <p className="mt-3 text-center text-sm font-medium text-rose-600" role="alert">
+          保存できませんでした。通信状態を確かめて、もう一度「記録する」を押してください。
         </p>
       )}
 
